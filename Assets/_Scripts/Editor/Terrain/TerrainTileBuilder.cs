@@ -50,8 +50,9 @@ public static class TerrainTileBuilder
         Mesh existingMesh = meshFilter.sharedMesh;
         if (IsTerrainSubAssetOf(existingMesh, tile))
         {
-            EditorUtility.CopySerialized(newMesh, existingMesh);
-            // CopySerialized overwrites the name too, and the sub-asset lookup keys on it
+            // CopySerialized left the GPU copy stale (old flat mesh kept drawing); the Mesh API re-uploads
+            TerrainMeshCopy.CopyGeometryInto(newMesh, existingMesh);
+            // the sub-asset lookup keys on the name, so keep it pinned
             existingMesh.name = TerrainMeshName;
             Object.DestroyImmediate(newMesh);
             ApplyOrRemoveTerraceChildren(tile, existingMesh, false);
@@ -86,7 +87,7 @@ public static class TerrainTileBuilder
             }
             else if (persistedMesh != mesh)
             {
-                EditorUtility.CopySerialized(mesh, persistedMesh);
+                TerrainMeshCopy.CopyGeometryInto(mesh, persistedMesh);
                 Object.DestroyImmediate(mesh);
                 mesh = persistedMesh;
             }

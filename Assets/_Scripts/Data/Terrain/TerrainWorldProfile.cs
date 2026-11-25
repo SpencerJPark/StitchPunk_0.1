@@ -33,8 +33,8 @@ public class TerrainWorldProfile : ScriptableObject
     public float terraceLevelHeightMetres = 3f;
     public int maxTerraceLevels = 3;
     [Tooltip("Rounded outline corner radius in metres")] public float terraceCornerRadiusMetres = 2.5f;
-    [Tooltip("Convex grass round-over at a cliff top, metres (TX-D11)")] public float terraceTopRoundMetres = 0.75f;
-    [Tooltip("Concave grass round-out at a cliff foot, metres (TX-D11)")] public float terraceFootRoundMetres = 0.75f;
+    [Tooltip("Tight rock bevel at a cliff top, metres (TX-D11, owner round 2)")] public float terraceTopRoundMetres = 0.2f;
+    [Tooltip("Tight rock bevel at a cliff foot, metres (TX-D11, owner round 2)")] public float terraceFootRoundMetres = 0.2f;
 
     public string groundLayerName = "Ground";
 

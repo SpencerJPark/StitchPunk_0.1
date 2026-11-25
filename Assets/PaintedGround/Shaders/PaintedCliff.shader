@@ -221,26 +221,15 @@ Shader "Painted/Cliff"
 
                     if (IN.uv.z > 1)
                     {
-                        float belowTopGrass = IN.uv.z - 10;
-                        float aboveFootGrass = IN.uv.w - 10;
+                        float onTopBevel = IN.uv.z - 10;
+                        float aboveFootBevel = IN.uv.w - 10;
 
-                        float topBladeScaled = IN.uv.y * _WallBladesPerMetre;
-                        float topBladeHash = CliffHash(float2(floor(topBladeScaled), 9.1));
-                        float topBladeTaper = 1 - 2 * abs(frac(topBladeScaled) - 0.5);
-                        float topTuftMetres = lerp(_GrassTuftMinMetres, _GrassTuftMaxMetres, topBladeHash) * (0.3 + 0.7 * topBladeTaper);
-
-                        rockColour *= lerp(1 - _OverhangShadowStrength, 1, saturate((belowTopGrass - topTuftMetres) / 0.4));
                         float3 wallColour = rockColour;
-                        if (belowTopGrass < topTuftMetres)
-                            wallColour = _LipColor.rgb * lerp(0.8, 1, saturate(-belowTopGrass / 0.5));
+                        wallColour *= lerp(1 - _OverhangShadowStrength, 1, saturate(IN.uv.x / 0.35));
+                        if (onTopBevel < 0)
+                            wallColour *= lerp(1.12, 1, saturate((onTopBevel + 0.2) / 0.2));
 
-                        float footInto = -aboveFootGrass;
-                        float footBladeHash = CliffHash(float2(floor(topBladeScaled), 23.7));
-                        float footTuftMetres = lerp(_GrassTuftMinMetres, _GrassTuftMaxMetres, footBladeHash) * (0.3 + 0.7 * topBladeTaper);
-                        if (footInto > _FootGrassStartMetres - footTuftMetres)
-                            wallColour = _LipColor.rgb * 0.9;
-
-                        wallColour *= lerp(1 - _FootShadowStrength, 1, saturate(abs(aboveFootGrass) / max(_FootShadowMetres, 0.001)));
+                        wallColour *= lerp(1 - _FootShadowStrength, 1, saturate(abs(aboveFootBevel) / max(_FootShadowMetres, 0.001)));
                         baseColour = wallColour;
                     }
                 }

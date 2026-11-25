@@ -182,8 +182,9 @@ public static class TerraceTileAssembly
             groundMaterial = tileRenderer.sharedMaterials[0];
 
         Material wallMaterial = GetOrCreateWallMaterial();
-        Material lipMaterial = GetOrCreateLipMaterial();
-        Material footMaterial = GetOrCreateFootMaterial();
+        TerrainWorldProfile world = TerrainWorldProfile.FindOrCreateInProject();
+        float topRoundMetres = world != null ? world.terraceTopRoundMetres : 0.2f;
+        float footRoundMetres = world != null ? world.terraceFootRoundMetres : 0.2f;
 
         // The tile mesh's submesh 1 (cliff profile) never draws on the GPU, in or out of a subscene; the tile renders
         // submesh 0 only, the profile renders from its own child mesh, and the tile collider keeps the combined mesh.
@@ -191,7 +192,9 @@ public static class TerraceTileAssembly
             tileRenderer.sharedMaterials = new Material[] { groundMaterial };
 
         ApplyWallsChild(tile, tileMesh, wallMaterial, persist);
-        ApplyDressingChild(tile, chains, lipMaterial, footMaterial, persist);
+        List<TerraceOutlineChain> dressingChains = new List<TerraceOutlineChain>();
+        if (chains != null)
+            dressingChains.AddRange(chains);
 
         int rampCount = 0;
         Vector2 tileMin = Vector2.zero;
@@ -212,11 +215,15 @@ public static class TerraceTileAssembly
                 if (!centreInsideTile)
                     continue;
 
-                ApplyRampChild(tile, rampCount, footprint, groundMaterial, wallMaterial, persist);
+                ApplyRampChild(tile, rampCount, footprint, groundMaterial, wallMaterial, topRoundMetres, footRoundMetres, persist);
+                List<TerraceOutlineChain> rampChains = TerraceRampMeshBuilder.BuildSideWallOutlineChains(in footprint, tile.transform.position, topRoundMetres, footRoundMetres);
+                if (rampChains != null)
+                    dressingChains.AddRange(rampChains);
                 rampCount++;
             }
         }
 
+        ApplyDressingChild(tile, dressingChains, groundMaterial, persist);
         RemoveRampChildrenFrom(tile, rampCount, persist);
     }
 
@@ -285,11 +292,11 @@ public static class TerraceTileAssembly
         return wallsMesh;
     }
 
-    static void ApplyDressingChild(TerrainTile tile, IReadOnlyList<TerraceOutlineChain> chains, Material lipMaterial, Material footMaterial, bool persist)
+    static void ApplyDressingChild(TerrainTile tile, IReadOnlyList<TerraceOutlineChain> chains, Material groundMaterial, bool persist)
     {
         Transform existingChild = tile.transform.Find(DressingChildName);
         Mesh dressingMesh = null;
-        if (chains != null && chains.Count > 0)
+        if (groundMaterial != null && chains != null && chains.Count > 0)
             dressingMesh = TerraceDressingBuilder.BuildLipAndFootMesh(chains, DressingFringeSizeMetres);
 
         if (dressingMesh == null)
@@ -309,11 +316,11 @@ public static class TerraceTileAssembly
             UnityEngine.Object.DestroyImmediate(colliders[colliderIndex]);
 
         filter.sharedMesh = ResolveMeshForChild(tile, filter.sharedMesh, dressingMesh, DressingMeshName, persist);
-        meshRenderer.sharedMaterials = new Material[] { lipMaterial, footMaterial };
+        meshRenderer.sharedMaterials = new Material[] { groundMaterial, groundMaterial };
         meshRenderer.shadowCastingMode = ShadowCastingMode.Off;
     }
 
-    static void ApplyRampChild(TerrainTile tile, int rampIndex, TerraceRampFootprint footprint, Material groundMaterial, Material wallMaterial, bool persist)
+    static void ApplyRampChild(TerrainTile tile, int rampIndex, TerraceRampFootprint footprint, Material groundMaterial, Material wallMaterial, float topRoundMetres, float footRoundMetres, bool persist)
     {
         string childName = RampChildPrefix + rampIndex;
         Transform existingChild = tile.transform.Find(childName);
@@ -322,7 +329,7 @@ public static class TerraceTileAssembly
         MeshRenderer meshRenderer = GetOrAdd<MeshRenderer>(child.gameObject);
         MeshCollider meshCollider = GetOrAdd<MeshCollider>(child.gameObject);
 
-        Mesh rampMesh = TerraceRampMeshBuilder.BuildRampMesh(in footprint, tile.transform.position);
+        Mesh rampMesh = TerraceRampMeshBuilder.BuildRampMesh(in footprint, tile.transform.position, topRoundMetres, footRoundMetres);
         Mesh resolved = ResolveMeshForChild(tile, filter.sharedMesh, rampMesh, RampMeshNamePrefix + rampIndex, persist);
         filter.sharedMesh = resolved;
         meshRenderer.sharedMaterials = new Material[] { groundMaterial, wallMaterial };
@@ -347,7 +354,7 @@ public static class TerraceTileAssembly
         Mesh persisted = FindSubAssetMesh(tile.tileData, meshName);
         if (persisted != null)
         {
-            EditorUtility.CopySerialized(newMesh, persisted);
+            TerrainMeshCopy.CopyGeometryInto(newMesh, persisted);
             persisted.name = meshName;
             UnityEngine.Object.DestroyImmediate(newMesh);
         }

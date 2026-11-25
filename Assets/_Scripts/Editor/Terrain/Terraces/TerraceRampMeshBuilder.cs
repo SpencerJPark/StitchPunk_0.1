@@ -33,6 +33,10 @@ public readonly struct TerraceRampFootprint
 public static class TerraceRampMeshBuilder
 {
     private const float TileSizeMetres = 100f;
+    private const int FilletSteps = 4;
+    private const int VerticesPerWallRow = (FilletSteps + 1) * 2 + 2;
+    private const float ProfiledVertexUvOffset = 10f;
+    private const float WallRowsPerMetre = 2f;
 
     public static void GetFootprintCornersXZ(in TerraceRampFootprint ramp, Vector2[] fourCorners)
     {
@@ -49,12 +53,23 @@ public static class TerraceRampMeshBuilder
 
     public static Mesh BuildRampMesh(in TerraceRampFootprint ramp, Vector3 tileOrigin)
     {
+        return BuildRampMesh(ramp, tileOrigin, 0.2f, 0.2f);
+    }
+
+    public static Mesh BuildRampMesh(
+        in TerraceRampFootprint ramp,
+        Vector3 tileOrigin,
+        float topRoundMetres,
+        float footRoundMetres)
+    {
         int cellsAlong = Mathf.Max(1, Mathf.CeilToInt(ramp.runMetres));
         int cellsAcross = Mathf.Max(1, Mathf.CeilToInt(ramp.widthMetres));
         int rowCount = cellsAlong + 1;
         int columnCount = cellsAcross + 1;
         int surfaceVertexCount = rowCount * columnCount;
-        int vertexCount = surfaceVertexCount + 2 * 2 * rowCount;
+        int wallCellsAlong = WallCellsAlong(ramp);
+        int wallRowCount = wallCellsAlong + 1;
+        int vertexCount = surfaceVertexCount + 2 * VerticesPerWallRow * wallRowCount;
 
         Vector2 forward = ForwardXZ(ramp.yawDegrees);
         Vector2 right = RightXZ(ramp.yawDegrees);
@@ -65,7 +80,7 @@ public static class TerraceRampMeshBuilder
 
         Vector3[] positions = new Vector3[vertexCount];
         Vector3[] normals = new Vector3[vertexCount];
-        Vector2[] uvs = new Vector2[vertexCount];
+        Vector4[] uvs = new Vector4[vertexCount];
 
         for (int row = 0; row < rowCount; row++)
         {
@@ -77,7 +92,8 @@ public static class TerraceRampMeshBuilder
                 int vertexIndex = row * columnCount + column;
                 positions[vertexIndex] = ToTileLocal(worldXZ, HeightAt(ramp, alongFraction), tileOrigin);
                 normals[vertexIndex] = surfaceNormal;
-                uvs[vertexIndex] = worldXZ / TileSizeMetres;
+                Vector2 surfaceUv = worldXZ / TileSizeMetres;
+                uvs[vertexIndex] = new Vector4(surfaceUv.x, surfaceUv.y, 0f, 0f);
             }
         }
 
@@ -96,54 +112,76 @@ public static class TerraceRampMeshBuilder
             }
         }
 
-        List<int> wallTriangles = new List<int>(2 * cellsAlong * 6);
+        List<int> wallTriangles = new List<int>(2 * wallCellsAlong * (FilletSteps * 2 + 1) * 6);
+        int[] groupStarts = { 0, FilletSteps + 1, FilletSteps + 3 };
+        int[] groupRowCounts = { FilletSteps + 1, 2, FilletSteps + 1 };
         for (int side = 0; side < 2; side++)
         {
             bool isRightSide = side == 1;
             float acrossFraction = isRightSide ? 1f : 0f;
             Vector2 outwardXZ = isRightSide ? right : -right;
-            Vector3 outward = new Vector3(outwardXZ.x, 0f, outwardXZ.y);
-            int wallBase = surfaceVertexCount + side * 2 * rowCount;
-            for (int row = 0; row < rowCount; row++)
+            int wallBase = surfaceVertexCount + side * VerticesPerWallRow * wallRowCount;
+            float[] wallHeights = new float[wallRowCount];
+            for (int row = 0; row < wallRowCount; row++)
             {
-                float alongFraction = (float)row / cellsAlong;
+                float alongFraction = (float)row / wallCellsAlong;
                 float topHeight = HeightAt(ramp, alongFraction);
+                float wallHeight = topHeight - ramp.lowerHeight;
+                wallHeights[row] = wallHeight;
                 Vector2 worldXZ = PointXZ(ramp, forward, right, alongFraction, acrossFraction);
-                int topIndex = wallBase + row * 2;
-                int bottomIndex = topIndex + 1;
-                positions[topIndex] = ToTileLocal(worldXZ, topHeight, tileOrigin);
-                positions[bottomIndex] = ToTileLocal(worldXZ, ramp.lowerHeight, tileOrigin);
-                normals[topIndex] = outward;
-                normals[bottomIndex] = outward;
-                float arcLength = alongFraction * edgeLength;
-                uvs[topIndex] = new Vector2(0f, arcLength);
-                uvs[bottomIndex] = new Vector2(topHeight - ramp.lowerHeight, arcLength);
+                float alongMetres = alongFraction * edgeLength;
+                float topRound = Mathf.Min(topRoundMetres, 0.3f * wallHeight);
+                float footRound = Mathf.Min(footRoundMetres, 0.3f * wallHeight);
+                float batter = 0.08f * wallHeight;
+                float faceRun = Mathf.Max(0f, wallHeight - footRound - topRound);
+                float topGrassEndArc = topRound * Mathf.PI * 0.5f;
+                float faceLength = Mathf.Sqrt(batter * batter + faceRun * faceRun);
+                float footGrassStartArc = topGrassEndArc + faceLength;
+                int rowBase = wallBase + row * VerticesPerWallRow;
+
+                for (int step = 0; step <= FilletSteps; step++)
+                {
+                    float angle = (float)step / FilletSteps * Mathf.PI * 0.5f;
+                    WriteWallVertex(positions, normals, uvs, rowBase + step, worldXZ, topHeight, tileOrigin, outwardXZ,
+                        topRound * angle, topRound * Mathf.Sin(angle), topRound * (1f - Mathf.Cos(angle)),
+                        Mathf.Sin(angle), Mathf.Cos(angle), alongMetres, topGrassEndArc, footGrassStartArc);
+                }
+
+                float faceNormalOut = faceLength > 1e-6f ? faceRun / faceLength : 1f;
+                float faceNormalUp = faceLength > 1e-6f ? batter / faceLength : 0f;
+                WriteWallVertex(positions, normals, uvs, rowBase + FilletSteps + 1, worldXZ, topHeight, tileOrigin, outwardXZ,
+                    topGrassEndArc, topRound, topRound, faceNormalOut, faceNormalUp, alongMetres, topGrassEndArc, footGrassStartArc);
+                WriteWallVertex(positions, normals, uvs, rowBase + FilletSteps + 2, worldXZ, topHeight, tileOrigin, outwardXZ,
+                    footGrassStartArc, topRound + batter, wallHeight - footRound, faceNormalOut, faceNormalUp,
+                    alongMetres, topGrassEndArc, footGrassStartArc);
+
+                for (int step = 0; step <= FilletSteps; step++)
+                {
+                    float angle = (float)step / FilletSteps * Mathf.PI * 0.5f;
+                    WriteWallVertex(positions, normals, uvs, rowBase + FilletSteps + 3 + step, worldXZ, topHeight, tileOrigin, outwardXZ,
+                        footGrassStartArc + footRound * angle,
+                        topRound + batter + footRound * (1f - Mathf.Cos(angle)),
+                        wallHeight - footRound + footRound * Mathf.Sin(angle),
+                        Mathf.Cos(angle), Mathf.Sin(angle), alongMetres, topGrassEndArc, footGrassStartArc);
+                }
             }
 
-            for (int row = 0; row < cellsAlong; row++)
+            for (int row = 0; row < wallCellsAlong; row++)
             {
-                int topNear = wallBase + row * 2;
-                int bottomNear = topNear + 1;
-                int topFar = topNear + 2;
-                int bottomFar = topNear + 3;
-                // Winding flips per side so both faces point away from the ramp.
-                if (isRightSide)
+                if (wallHeights[row] < 0.01f && wallHeights[row + 1] < 0.01f)
                 {
-                    wallTriangles.Add(topNear);
-                    wallTriangles.Add(topFar);
-                    wallTriangles.Add(bottomNear);
-                    wallTriangles.Add(topFar);
-                    wallTriangles.Add(bottomFar);
-                    wallTriangles.Add(bottomNear);
+                    continue;
                 }
-                else
+
+                for (int group = 0; group < 3; group++)
                 {
-                    wallTriangles.Add(topNear);
-                    wallTriangles.Add(bottomNear);
-                    wallTriangles.Add(topFar);
-                    wallTriangles.Add(topFar);
-                    wallTriangles.Add(bottomNear);
-                    wallTriangles.Add(bottomFar);
+                    for (int step = 0; step < groupRowCounts[group] - 1; step++)
+                    {
+                        int nearUpper = wallBase + row * VerticesPerWallRow + groupStarts[group] + step;
+                        int farUpper = nearUpper + VerticesPerWallRow;
+                        AddOrientedTriangle(wallTriangles, positions, normals, nearUpper, farUpper, nearUpper + 1);
+                        AddOrientedTriangle(wallTriangles, positions, normals, farUpper, farUpper + 1, nearUpper + 1);
+                    }
                 }
             }
         }
@@ -153,12 +191,117 @@ public static class TerraceRampMeshBuilder
         mesh.indexFormat = vertexCount <= 65535 ? IndexFormat.UInt16 : IndexFormat.UInt32;
         mesh.vertices = positions;
         mesh.normals = normals;
-        mesh.uv = uvs;
+        mesh.SetUVs(0, new List<Vector4>(uvs));
         mesh.subMeshCount = 2;
         mesh.SetTriangles(surfaceTriangles, 0);
         mesh.SetTriangles(wallTriangles, 1);
         mesh.RecalculateBounds();
         return mesh;
+    }
+
+    // One chain per side (left, right), one point per wall row, for the edge-fringe dressing.
+    public static List<TerraceOutlineChain> BuildSideWallOutlineChains(
+        in TerraceRampFootprint ramp,
+        Vector3 tileOrigin,
+        float topRoundMetres,
+        float footRoundMetres)
+    {
+        int wallCellsAlong = WallCellsAlong(ramp);
+        int wallRowCount = wallCellsAlong + 1;
+        Vector2 forward = ForwardXZ(ramp.yawDegrees);
+        Vector2 right = RightXZ(ramp.yawDegrees);
+        List<TerraceOutlineChain> chains = new List<TerraceOutlineChain>(2);
+        for (int side = 0; side < 2; side++)
+        {
+            bool isRightSide = side == 1;
+            float acrossFraction = isRightSide ? 1f : 0f;
+            Vector2 outwardXZ = isRightSide ? right : -right;
+            TerraceOutlineChain chain = new TerraceOutlineChain();
+            chain.points = new Vector3[wallRowCount];
+            chain.bottomHeights = new float[wallRowCount];
+            chain.startArcPhase = 0f;
+            chain.outwardNormals = new Vector2[wallRowCount];
+            chain.topRoundMetres = new float[wallRowCount];
+            chain.footOffsetMetres = new float[wallRowCount];
+            chain.footHeights = new float[wallRowCount];
+            float bottomHeight = ramp.lowerHeight - tileOrigin.y;
+            for (int row = 0; row < wallRowCount; row++)
+            {
+                float alongFraction = (float)row / wallCellsAlong;
+                float wallHeight = HeightAt(ramp, alongFraction) - ramp.lowerHeight;
+                float topRound = Mathf.Min(topRoundMetres, 0.3f * wallHeight);
+                float footRound = Mathf.Min(footRoundMetres, 0.3f * wallHeight);
+                float batter = 0.08f * wallHeight;
+                Vector2 worldXZ = PointXZ(ramp, forward, right, alongFraction, acrossFraction);
+                chain.points[row] = ToTileLocal(worldXZ, HeightAt(ramp, alongFraction), tileOrigin);
+                chain.bottomHeights[row] = bottomHeight;
+                chain.outwardNormals[row] = outwardXZ;
+                chain.topRoundMetres[row] = wallHeight < 0.05f ? 0f : topRound;
+                chain.footOffsetMetres[row] = topRound + batter + footRound;
+                chain.footHeights[row] = bottomHeight + 0.03f;
+            }
+
+            chains.Add(chain);
+        }
+
+        return chains;
+    }
+
+    private static int WallCellsAlong(in TerraceRampFootprint ramp)
+    {
+        int cellsAlong = Mathf.Max(1, Mathf.CeilToInt(ramp.runMetres));
+        return Mathf.Max(cellsAlong, Mathf.CeilToInt(ramp.runMetres * WallRowsPerMetre));
+    }
+
+    private static void WriteWallVertex(
+        Vector3[] positions,
+        Vector3[] normals,
+        Vector4[] uvs,
+        int vertexIndex,
+        Vector2 edgeWorldXZ,
+        float topHeight,
+        Vector3 tileOrigin,
+        Vector2 outwardXZ,
+        float arc,
+        float outDistance,
+        float downDistance,
+        float normalOut,
+        float normalUp,
+        float alongMetres,
+        float topGrassEndArc,
+        float footGrassStartArc)
+    {
+        Vector2 worldXZ = edgeWorldXZ + outwardXZ * outDistance;
+        positions[vertexIndex] = ToTileLocal(worldXZ, topHeight - downDistance, tileOrigin);
+        normals[vertexIndex] = new Vector3(outwardXZ.x * normalOut, normalUp, outwardXZ.y * normalOut).normalized;
+        uvs[vertexIndex] = new Vector4(
+            arc,
+            alongMetres,
+            ProfiledVertexUvOffset + arc - topGrassEndArc,
+            ProfiledVertexUvOffset + footGrassStartArc - arc);
+    }
+
+    private static void AddOrientedTriangle(
+        List<int> triangles,
+        Vector3[] positions,
+        Vector3[] normals,
+        int first,
+        int second,
+        int third)
+    {
+        Vector3 geometricNormal = Vector3.Cross(positions[second] - positions[first], positions[third] - positions[first]);
+        float agreement = Vector3.Dot(geometricNormal, normals[first] + normals[second] + normals[third]);
+        triangles.Add(first);
+        if (agreement >= 0f)
+        {
+            triangles.Add(second);
+            triangles.Add(third);
+        }
+        else
+        {
+            triangles.Add(third);
+            triangles.Add(second);
+        }
     }
 
     private static Vector2 ForwardXZ(float yawDegrees)

@@ -10,6 +10,8 @@ public static class TerraceLevelField
 
     private const int CellsPerSide = TerrainTileData.TerraceCellsPerSide;
     private const double NoFeatureDistanceSquared = 1e20;
+    private const double SignedDistanceBlurSigmaSamples = 1.5;
+    private const int SignedDistanceBlurKernelRadiusSamples = 4;
 
     // Signed level -3..+3.
     public static int ResolvedLevel(TerrainTileData data, int cellX, int cellZ)
@@ -43,7 +45,8 @@ public static class TerraceLevelField
         // Rounding is opening then closing, so a sample depends on cells up to three radii away.
         int marginCells = Mathf.Min(
             CellsPerSide,
-            Mathf.CeilToInt(3f * radiusMetres) + Mathf.CeilToInt(SignedDistanceClampMetres) + 2);
+            Mathf.CeilToInt(3f * radiusMetres) + Mathf.CeilToInt(SignedDistanceClampMetres) + 2
+                + Mathf.CeilToInt(SignedDistanceBlurKernelRadiusSamples / (float)samplesPerMetreClamped) + 1);
         int paddedCells = CellsPerSide + 2 * marginCells;
         int side = CellsPerSide * samplesPerMetreClamped + 1;
         int marginSamples = marginCells * samplesPerMetreClamped;
@@ -69,28 +72,79 @@ public static class TerraceLevelField
         double[] distanceSquaredToOutside = DistanceSquaredToFeatures(Invert(inside), paddedSide);
         double[] distanceSquaredToInside = DistanceSquaredToFeatures(inside, paddedSide);
 
+        double[] paddedSignedMetres = new double[paddedSide * paddedSide];
+        for (int paddedIndex = 0; paddedIndex < paddedSignedMetres.Length; paddedIndex++)
+        {
+            paddedSignedMetres[paddedIndex] = inside[paddedIndex]
+                ? (Math.Sqrt(distanceSquaredToOutside[paddedIndex]) - 0.5) / samplesPerMetreClamped
+                : -(Math.Sqrt(distanceSquaredToInside[paddedIndex]) - 0.5) / samplesPerMetreClamped;
+        }
+
+        // The binary grid's iso-0 runs through sample midpoints (a pixel staircase); blurring the field smooths the contour.
+        BlurSignedDistanceSeparable(
+            paddedSignedMetres, paddedSide, SignedDistanceBlurSigmaSamples, SignedDistanceBlurKernelRadiusSamples);
+
         float[] signedDistance = new float[side * side];
         for (int sampleZ = 0; sampleZ < side; sampleZ++)
         {
             for (int sampleX = 0; sampleX < side; sampleX++)
             {
                 int paddedIndex = (sampleZ + marginSamples) * paddedSide + sampleX + marginSamples;
-                double metres;
-                if (inside[paddedIndex])
-                {
-                    metres = (Math.Sqrt(distanceSquaredToOutside[paddedIndex]) - 0.5) / samplesPerMetreClamped;
-                }
-                else
-                {
-                    metres = -(Math.Sqrt(distanceSquaredToInside[paddedIndex]) - 0.5) / samplesPerMetreClamped;
-                }
-
-                signedDistance[sampleZ * side + sampleX] =
-                    (float)Math.Max(-SignedDistanceClampMetres, Math.Min(SignedDistanceClampMetres, metres));
+                signedDistance[sampleZ * side + sampleX] = (float)Math.Max(
+                    -SignedDistanceClampMetres, Math.Min(SignedDistanceClampMetres, paddedSignedMetres[paddedIndex]));
             }
         }
 
         return signedDistance;
+    }
+
+    // Symmetric normalised kernel with clamped indices: linear fields (straight edges) are unchanged; blurs in place.
+    private static void BlurSignedDistanceSeparable(double[] field, int side, double sigmaSamples, int kernelRadiusSamples)
+    {
+        double[] weights = new double[2 * kernelRadiusSamples + 1];
+        double weightSum = 0.0;
+        for (int kernelOffset = -kernelRadiusSamples; kernelOffset <= kernelRadiusSamples; kernelOffset++)
+        {
+            double weight = Math.Exp(-(double)(kernelOffset * kernelOffset) / (2.0 * sigmaSamples * sigmaSamples));
+            weights[kernelOffset + kernelRadiusSamples] = weight;
+            weightSum += weight;
+        }
+
+        for (int weightIndex = 0; weightIndex < weights.Length; weightIndex++)
+        {
+            weights[weightIndex] /= weightSum;
+        }
+
+        double[] scratch = new double[field.Length];
+        for (int sampleZ = 0; sampleZ < side; sampleZ++)
+        {
+            for (int sampleX = 0; sampleX < side; sampleX++)
+            {
+                double blurred = 0.0;
+                for (int kernelOffset = -kernelRadiusSamples; kernelOffset <= kernelRadiusSamples; kernelOffset++)
+                {
+                    int sourceX = Math.Max(0, Math.Min(side - 1, sampleX + kernelOffset));
+                    blurred += weights[kernelOffset + kernelRadiusSamples] * field[sampleZ * side + sourceX];
+                }
+
+                scratch[sampleZ * side + sampleX] = blurred;
+            }
+        }
+
+        for (int sampleZ = 0; sampleZ < side; sampleZ++)
+        {
+            for (int sampleX = 0; sampleX < side; sampleX++)
+            {
+                double blurred = 0.0;
+                for (int kernelOffset = -kernelRadiusSamples; kernelOffset <= kernelRadiusSamples; kernelOffset++)
+                {
+                    int sourceZ = Math.Max(0, Math.Min(side - 1, sampleZ + kernelOffset));
+                    blurred += weights[kernelOffset + kernelRadiusSamples] * scratch[sourceZ * side + sampleX];
+                }
+
+                field[sampleZ * side + sampleX] = blurred;
+            }
+        }
     }
 
     private static int[] BuildPaddedLevels(

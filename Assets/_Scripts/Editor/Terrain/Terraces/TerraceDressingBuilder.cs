@@ -6,12 +6,21 @@ using UnityEngine.Rendering;
 public static class TerraceDressingBuilder
 {
     const float DefaultFootOffsetMetres = 1.5f;
-    const float FootTuftRootInsetMetres = 0.05f;
-    const float FootTuftLeanMetres = 0.08f;
-    const float FootTuftHeightMetres = 0.28f;
-    const float FootTuftBottomDropMetres = 0.03f;
+    const float RootInsetMetres = 0.10f;
+    const float RootLiftMetres = 0.015f;
+    const float ShoulderReachMetres = 0.02f;
+    const float TopShoulderDropMetres = 0.01f;
+    const float TopTuftReachMin = 0.05f;
+    const float TopTuftReachMax = 0.20f;
+    const float TopTuftDropMin = 0.03f;
+    const float TopTuftDropMax = 0.08f;
+    const float FootTuftReachMin = 0.05f;
+    const float FootTuftReachMax = 0.18f;
+    const float FootTuftRaiseMin = 0.03f;
+    const float FootTuftRaiseMax = 0.07f;
+    const float TuftReachCapFraction = 0.9f;
 
-    // submesh 0 = lip (always empty, the cliff shader paints the top tufts), submesh 1 = short grass fringe at the foot fillet's outer edge.
+    // submesh 0 = top fringe over the cliff bevel, submesh 1 = foot fringe lapping the foot bevel; drawn with the tile's ground material.
     public static Mesh BuildLipAndFootMesh(IReadOnlyList<TerraceOutlineChain> chains, float fringeSizeMetres)
     {
         if (chains == null || chains.Count == 0)
@@ -19,8 +28,6 @@ public static class TerraceDressingBuilder
 
         List<Vector3> positions = new List<Vector3>();
         List<Vector3> normals = new List<Vector3>();
-        List<Vector2> uvs = new List<Vector2>();
-        List<Color> colors = new List<Color>();
         List<int> lipIndices = new List<int>();
         List<int> footIndices = new List<int>();
 
@@ -35,10 +42,6 @@ public static class TerraceDressingBuilder
                 ? chain.outwardNormals
                 : ComputeOutwardNormals(chain.points);
 
-            float[] arcMetres = new float[pointCount];
-            for (int pointIndex = 1; pointIndex < pointCount; pointIndex++)
-                arcMetres[pointIndex] = arcMetres[pointIndex - 1] + HorizontalDistance(chain.points[pointIndex - 1], chain.points[pointIndex]);
-
             int runStart = -1;
             for (int pointIndex = 0; pointIndex <= pointCount; pointIndex++)
             {
@@ -50,13 +53,12 @@ public static class TerraceDressingBuilder
                     continue;
                 }
                 if (runStart >= 0 && pointIndex - runStart >= 2)
-                    AddRun(chain, outwardNormals, arcMetres, runStart, pointIndex, fringeSizeMetres,
-                           positions, normals, uvs, colors, lipIndices, footIndices);
+                    AddRun(chain, outwardNormals, runStart, pointIndex, positions, normals, lipIndices, footIndices);
                 runStart = -1;
             }
         }
 
-        if (footIndices.Count == 0)
+        if (lipIndices.Count == 0 && footIndices.Count == 0)
             return null;
 
         Mesh mesh = new Mesh();
@@ -64,8 +66,6 @@ public static class TerraceDressingBuilder
         mesh.indexFormat = positions.Count > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16;
         mesh.SetVertices(positions);
         mesh.SetNormals(normals);
-        mesh.SetUVs(0, uvs);
-        mesh.SetColors(colors);
         mesh.subMeshCount = 2;
         mesh.SetTriangles(lipIndices, 0);
         mesh.SetTriangles(footIndices, 1);
@@ -79,28 +79,115 @@ public static class TerraceDressingBuilder
         return chain.topRoundMetres != null && chain.topRoundMetres.Length > pointIndex && chain.topRoundMetres[pointIndex] <= 0f;
     }
 
-    static void AddRun(TerraceOutlineChain chain, Vector2[] outwardNormals, float[] arcMetres, int firstPoint, int endPoint,
-                       float fringeSizeMetres, List<Vector3> positions, List<Vector3> normals, List<Vector2> uvs,
-                       List<Color> colors, List<int> lipIndices, List<int> footIndices)
+    static void AddRun(TerraceOutlineChain chain, Vector2[] outwardNormals, int firstPoint, int endPoint,
+                       List<Vector3> positions, List<Vector3> normals, List<int> lipIndices, List<int> footIndices)
     {
-        int columnCount = endPoint - firstPoint;
-
-        int footStart = positions.Count;
-        for (int pointIndex = firstPoint; pointIndex < endPoint; pointIndex++)
+        for (int pointIndex = firstPoint; pointIndex < endPoint - 1; pointIndex++)
         {
-            Vector3 point = chain.points[pointIndex];
-            Vector2 outward = outwardNormals[pointIndex];
-            float footOffset = HasValue(chain.footOffsetMetres, pointIndex) ? chain.footOffsetMetres[pointIndex] : DefaultFootOffsetMetres;
-            float uvAlong = (chain.startArcPhase + arcMetres[pointIndex]) / fringeSizeMetres;
-            float rootReach = footOffset - FootTuftRootInsetMetres;
-            float tipReach = footOffset + FootTuftLeanMetres;
-            float bottomHeight = HasValue(chain.footHeights, pointIndex) ? chain.footHeights[pointIndex] : chain.bottomHeights[pointIndex];
+            int nextIndex = pointIndex + 1;
+            Vector3 pointA = chain.points[pointIndex];
+            Vector3 pointB = chain.points[nextIndex];
+            Vector2 outwardA = outwardNormals[pointIndex];
+            Vector2 outwardB = outwardNormals[nextIndex];
+            Vector2 outwardMid = outwardA + outwardB;
+            outwardMid = outwardMid.sqrMagnitude < 1e-8f ? outwardA : outwardMid.normalized;
+            Vector3 midPoint = (pointA + pointB) * 0.5f;
+            float hash = HashZeroToOne(midPoint.x, midPoint.z);
 
-            positions.Add(new Vector3(point.x + outward.x * rootReach, bottomHeight - FootTuftBottomDropMetres, point.z + outward.y * rootReach));
-            positions.Add(new Vector3(point.x + outward.x * tipReach, bottomHeight + FootTuftHeightMetres, point.z + outward.y * tipReach));
-            AddColumnAttributes(normals, uvs, colors, uvAlong, 1f, 0f);
+            float topRoundA = HasValue(chain.topRoundMetres, pointIndex) ? chain.topRoundMetres[pointIndex] : 0f;
+            float topRoundB = HasValue(chain.topRoundMetres, nextIndex) ? chain.topRoundMetres[nextIndex] : 0f;
+            float topRoundMid = (topRoundA + topRoundB) * 0.5f;
+
+            float topReach = Mathf.Lerp(TopTuftReachMin, TopTuftReachMax, hash);
+            if (topRoundMid > 0f)
+                topReach = Mathf.Min(topReach, TuftReachCapFraction * topRoundMid);
+            float topDrop = Mathf.Lerp(TopTuftDropMin, TopTuftDropMax, HashZeroToOne(midPoint.z + 17.3f, midPoint.x - 5.1f));
+
+            AddFringeSegment(positions, normals, lipIndices,
+                OffsetPoint(pointA, outwardA, -RootInsetMetres, RootLiftMetres),
+                OffsetPoint(pointB, outwardB, -RootInsetMetres, RootLiftMetres),
+                OffsetPoint(pointA, outwardA, ShoulderReachMetres, -TopShoulderDropMetres),
+                OffsetPoint(pointB, outwardB, ShoulderReachMetres, -TopShoulderDropMetres),
+                OffsetPoint(midPoint, outwardMid, topReach, -topDrop));
+
+            float footOffsetA = GetFootOffset(chain, pointIndex);
+            float footOffsetB = GetFootOffset(chain, nextIndex);
+            float footHeightA = GetFootHeight(chain, pointIndex);
+            float footHeightB = GetFootHeight(chain, nextIndex);
+            float footOffsetMid = (footOffsetA + footOffsetB) * 0.5f;
+            float footHeightMid = (footHeightA + footHeightB) * 0.5f;
+
+            float footReach = Mathf.Lerp(FootTuftReachMin, FootTuftReachMax, HashZeroToOne(midPoint.x + 3.7f, midPoint.z + 9.2f));
+            if (topRoundMid > 0f && footOffsetMid > topRoundMid)
+                footReach = Mathf.Min(footReach, TuftReachCapFraction * (footOffsetMid - topRoundMid));
+            float footRaise = Mathf.Lerp(FootTuftRaiseMin, FootTuftRaiseMax, HashZeroToOne(midPoint.z - 11.9f, midPoint.x + 2.4f));
+
+            AddFringeSegment(positions, normals, footIndices,
+                FootPoint(pointA, outwardA, footOffsetA + RootInsetMetres, footHeightA - RootLiftMetres),
+                FootPoint(pointB, outwardB, footOffsetB + RootInsetMetres, footHeightB - RootLiftMetres),
+                FootPoint(pointA, outwardA, footOffsetA + ShoulderReachMetres, footHeightA),
+                FootPoint(pointB, outwardB, footOffsetB + ShoulderReachMetres, footHeightB),
+                FootPoint(midPoint, outwardMid, footOffsetMid - footReach, footHeightMid + footRaise));
         }
-        AddStripIndices(footIndices, footStart, columnCount);
+    }
+
+    static float GetFootOffset(TerraceOutlineChain chain, int pointIndex)
+    {
+        return HasValue(chain.footOffsetMetres, pointIndex) ? chain.footOffsetMetres[pointIndex] : DefaultFootOffsetMetres;
+    }
+
+    static float GetFootHeight(TerraceOutlineChain chain, int pointIndex)
+    {
+        return HasValue(chain.footHeights, pointIndex) ? chain.footHeights[pointIndex] : chain.bottomHeights[pointIndex];
+    }
+
+    static Vector3 OffsetPoint(Vector3 point, Vector2 outward, float reachMetres, float heightDelta)
+    {
+        return new Vector3(point.x + outward.x * reachMetres, point.y + heightDelta, point.z + outward.y * reachMetres);
+    }
+
+    static Vector3 FootPoint(Vector3 point, Vector2 outward, float reachMetres, float absoluteHeight)
+    {
+        return new Vector3(point.x + outward.x * reachMetres, absoluteHeight, point.z + outward.y * reachMetres);
+    }
+
+    // Deterministic per-position noise so rebuilds do not reshuffle the ragged edge.
+    static float HashZeroToOne(float worldX, float worldZ)
+    {
+        float raw = Mathf.Sin(worldX * 12.9898f + worldZ * 78.233f) * 43758.5453f;
+        return raw - Mathf.Floor(raw);
+    }
+
+    // Root quad plus one tuft triangle; each triangle is flipped if needed so it faces up.
+    static void AddFringeSegment(List<Vector3> positions, List<Vector3> normals, List<int> indices,
+                                 Vector3 rootA, Vector3 rootB, Vector3 shoulderA, Vector3 shoulderB, Vector3 tip)
+    {
+        int baseIndex = positions.Count;
+        positions.Add(rootA);
+        positions.Add(rootB);
+        positions.Add(shoulderB);
+        positions.Add(shoulderA);
+        positions.Add(tip);
+        for (int normalIndex = 0; normalIndex < 5; normalIndex++)
+            normals.Add(Vector3.up);
+
+        AddUpFacingTriangle(indices, positions, baseIndex, baseIndex + 1, baseIndex + 2);
+        AddUpFacingTriangle(indices, positions, baseIndex, baseIndex + 2, baseIndex + 3);
+        AddUpFacingTriangle(indices, positions, baseIndex + 3, baseIndex + 2, baseIndex + 4);
+    }
+
+    static void AddUpFacingTriangle(List<int> indices, List<Vector3> positions, int first, int second, int third)
+    {
+        Vector3 faceNormal = Vector3.Cross(positions[second] - positions[first], positions[third] - positions[first]);
+        if (faceNormal.y < 0f)
+        {
+            int swapped = second;
+            second = third;
+            third = swapped;
+        }
+        indices.Add(first);
+        indices.Add(second);
+        indices.Add(third);
     }
 
     static bool HasValue(float[] values, int pointIndex)
@@ -132,40 +219,6 @@ public static class TerraceDressingBuilder
     {
         Vector2 direction = new Vector2(to.x - from.x, to.z - from.z);
         return direction.sqrMagnitude < 1e-10f ? Vector2.zero : direction.normalized;
-    }
-
-    static float HorizontalDistance(Vector3 from, Vector3 to)
-    {
-        return new Vector2(to.x - from.x, to.z - from.z).magnitude;
-    }
-
-    // Column layout is first then second vertex; uv.y runs firstV to secondV, vertex colours stay white.
-    static void AddColumnAttributes(List<Vector3> normals, List<Vector2> uvs, List<Color> colors, float uvAlong, float firstV, float secondV)
-    {
-        normals.Add(Vector3.up);
-        normals.Add(Vector3.up);
-        uvs.Add(new Vector2(uvAlong, firstV));
-        uvs.Add(new Vector2(uvAlong, secondV));
-        colors.Add(Color.white);
-        colors.Add(Color.white);
-    }
-
-    // With outward on the right of travel this winding faces up in Unity's clockwise-front convention.
-    static void AddStripIndices(List<int> indices, int firstVertex, int columnCount)
-    {
-        for (int columnIndex = 0; columnIndex < columnCount - 1; columnIndex++)
-        {
-            int innerCurrent = firstVertex + columnIndex * 2;
-            int outerCurrent = innerCurrent + 1;
-            int innerNext = innerCurrent + 2;
-            int outerNext = innerCurrent + 3;
-            indices.Add(innerCurrent);
-            indices.Add(innerNext);
-            indices.Add(outerNext);
-            indices.Add(innerCurrent);
-            indices.Add(outerNext);
-            indices.Add(outerCurrent);
-        }
     }
 }
 #endif
