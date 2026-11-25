@@ -481,9 +481,8 @@ public static class TerraceTileMeshBuilder
 
         private void AddWallSegment(Vector2 start, Vector2 end, int lowerLevel, Vector2 normal)
         {
-            Vector2 midpointLocal = (start + end) * 0.5f;
-            // Endpoints too: a segment straddling the footprint edge has its midpoint outside and floats over the opening.
-            if (InsideAnyRamp(midpointLocal) || InsideAnyRamp(start) || InsideAnyRamp(end))
+            // Clip rather than drop: a dropped straddling segment leaves a slit between the plateau wall and the ramp side wall.
+            if (!TryClipSegmentOutsideRamps(ref start, ref end))
             {
                 return;
             }
@@ -501,6 +500,98 @@ public static class TerraceTileMeshBuilder
             segment.lowerLevel = lowerLevel;
             segment.normal = normal;
             wallSegments.Add(segment);
+        }
+
+        // Moves an endpoint inside a footprint to where the segment crosses its edge; false when nothing outside remains.
+        private bool TryClipSegmentOutsideRamps(ref Vector2 start, ref Vector2 end)
+        {
+            Vector2 localToWorld = tileWorldCentre - new Vector2(HalfTile, HalfTile);
+            Vector2 worldStart = start + localToWorld;
+            Vector2 worldEnd = end + localToWorld;
+            for (int rampIndex = 0; rampIndex < rampCorners.Count; rampIndex++)
+            {
+                Vector2[] corners = rampCorners[rampIndex];
+                bool startInside = PointInConvexQuad(corners, worldStart);
+                bool endInside = PointInConvexQuad(corners, worldEnd);
+                if (startInside && endInside)
+                {
+                    return false;
+                }
+                if (!startInside && !endInside)
+                {
+                    continue;
+                }
+                Vector2 outsidePoint = startInside ? worldEnd : worldStart;
+                Vector2 insidePoint = startInside ? worldStart : worldEnd;
+                Vector2 direction = insidePoint - outsidePoint;
+                float nearestCrossing = 1f;
+                for (int corner = 0; corner < 4; corner++)
+                {
+                    Vector2 edgeStart = corners[corner];
+                    Vector2 edgeDirection = corners[(corner + 1) % 4] - edgeStart;
+                    float denominator = direction.x * edgeDirection.y - direction.y * edgeDirection.x;
+                    if (Mathf.Abs(denominator) < 1e-9f)
+                    {
+                        continue;
+                    }
+                    Vector2 toEdge = edgeStart - outsidePoint;
+                    float alongSegment = (toEdge.x * edgeDirection.y - toEdge.y * edgeDirection.x) / denominator;
+                    float alongEdge = (toEdge.x * direction.y - toEdge.y * direction.x) / denominator;
+                    if (alongEdge >= 0f && alongEdge <= 1f && alongSegment >= 0f && alongSegment < nearestCrossing)
+                    {
+                        nearestCrossing = alongSegment;
+                    }
+                }
+                Vector2 clippedPoint = outsidePoint + direction * nearestCrossing;
+                if (startInside)
+                {
+                    worldStart = clippedPoint;
+                }
+                else
+                {
+                    worldEnd = clippedPoint;
+                }
+            }
+            Vector2 worldMidpoint = (worldStart + worldEnd) * 0.5f;
+            for (int rampIndex = 0; rampIndex < rampCorners.Count; rampIndex++)
+            {
+                if (PointInConvexQuad(rampCorners[rampIndex], worldMidpoint))
+                {
+                    return false;
+                }
+            }
+            if ((worldEnd - worldStart).sqrMagnitude < 1e-8f)
+            {
+                return false;
+            }
+            start = worldStart - localToWorld;
+            end = worldEnd - localToWorld;
+            return true;
+        }
+
+        // Inside a footprint and at least marginMetres from every edge.
+        private bool InsideAnyRampByMargin(Vector2 localPoint, float marginMetres)
+        {
+            Vector2 worldPoint = localPoint - new Vector2(HalfTile, HalfTile) + tileWorldCentre;
+            for (int rampIndex = 0; rampIndex < rampCorners.Count; rampIndex++)
+            {
+                Vector2[] corners = rampCorners[rampIndex];
+                int positiveCount = 0;
+                int negativeCount = 0;
+                for (int corner = 0; corner < 4; corner++)
+                {
+                    Vector2 edge = corners[(corner + 1) % 4] - corners[corner];
+                    Vector2 toPoint = worldPoint - corners[corner];
+                    float signedDistance = (edge.x * toPoint.y - edge.y * toPoint.x) / Mathf.Max(edge.magnitude, 1e-6f);
+                    positiveCount += signedDistance >= marginMetres ? 1 : 0;
+                    negativeCount += signedDistance <= -marginMetres ? 1 : 0;
+                }
+                if (positiveCount == 4 || negativeCount == 4)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private bool AllPointsInsideRamp(Vector2[] localPoints)
@@ -698,7 +789,8 @@ public static class TerraceTileMeshBuilder
                 float footRound = Mathf.Min(footRoundMetres, 0.3f * wallHeight);
                 float batter = 0.08f * wallHeight;
                 float footOffset = topRound + batter + footRound;
-                if (InsideAnyRamp(chainPoints[index] + outward[index] * footOffset))
+                // Margin: chain ends sit exactly on a footprint side line, so a borderline hit must not zero the profile.
+                if (InsideAnyRampByMargin(chainPoints[index] + outward[index] * footOffset, 0.05f))
                 {
                     topRound = 0f;
                     footRound = 0f;
