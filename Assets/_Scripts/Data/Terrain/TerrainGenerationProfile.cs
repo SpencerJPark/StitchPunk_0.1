@@ -100,6 +100,16 @@ public class TerrainGenerationProfile : ScriptableObject
     [Tooltip("Level ground for camps and towns, blended into the terrain around it.")]
     public List<TerrainFlatArea> flatAreas = new List<TerrainFlatArea>();
 
+    [Header("Biome noise shape")]
+    [Tooltip("Metres the biome noise lookup is pushed around by a second noise. 0 = off (old behaviour). ~8-14 gives organic, non-grid borders.")]
+    public float biomeNoiseWarpMetres = 0f;
+
+    [Tooltip("Frequency of the warp noise, per metre.")]
+    public float biomeNoiseWarpFrequency = 0.04f;
+
+    [Tooltip("Each biome rule's noise is sampled in a grid rotated by this much more than the previous rule, so no rule lines up with the world axes.")]
+    public float biomeNoiseRotationDegrees = 0f;
+
     public List<TerrainBiomeRule> biomeRules = new List<TerrainBiomeRule>
     {
         new TerrainBiomeRule

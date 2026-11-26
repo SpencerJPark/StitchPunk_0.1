@@ -10,11 +10,12 @@ public static class TerrainTestWorldBuilder
 {
     public const string TestWorldScenePath = "Assets/Scenes/TerrainWorld.unity";
     public const string TestWorldTileFolder = "Assets/Terrain/TestWorld";
-    const string CampLoopScenePath = "Assets/Scenes/CampLoop.unity";
+    // CampLoop.unity was removed (817e7dac); TerrainWorld carries the same atmosphere, lighting bridge and edge-tile setup.
+    const string TemplateScenePath = "Assets/Scenes/TerrainWorld.unity";
     const string TerrainWorldRootName = "TerrainWorld";
     const string TileObjectPrefix = "Tile_";
-    const string SharedSubSceneName = "CampLoop_Sub";
-    const string SharedSubScenePath = "Assets/Scenes/SubScenes/CampLoop_Sub.unity";
+    const string SharedSubSceneName = "TerrainWorld_Sub";
+    const string SharedSubScenePath = "Assets/Scenes/SubScenes/TerrainWorld_Sub.unity";
     const string TestWorldSubSceneName = "TerrainWorld_Sub";
     const string TestWorldSubScenePath = "Assets/Scenes/SubScenes/TerrainWorld_Sub.unity";
     const string RequiredTileFolderPrefix = "Assets/Terrain/";
@@ -92,6 +93,8 @@ public static class TerrainTestWorldBuilder
         if (string.IsNullOrEmpty(target.tileFolder) || target.tileFolder == "Assets" || !target.tileFolder.StartsWith(RequiredTileFolderPrefix))
             return "Refused: the tile folder '" + target.tileFolder + "' must be under " + RequiredTileFolderPrefix + " because a build deletes it.";
         if (tilesPerSide < 1 || tilesPerSide % 2 == 0) return "Tiles per side must be a positive odd number.";
+        // The build deletes the target's tile folder before copying, so a target that is the template would lose its tiles.
+        if (target.scenePath == TemplateScenePath) return "Refused: " + target.scenePath + " is the template scene this build copies from.";
         if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return "Cancelled: the open scene was not saved.";
 
         ActiveTarget = target;
@@ -99,10 +102,10 @@ public static class TerrainTestWorldBuilder
         int tilesCreated = 0;
         try
         {
-            EditorUtility.DisplayProgressBar(target.progressTitle, "Copying CampLoop", 0f);
+            EditorUtility.DisplayProgressBar(target.progressTitle, "Copying the template scene", 0f);
             if (AssetDatabase.DeleteAsset(target.tileFolder)) AssetDatabase.Refresh();
             EnsureFolder(target.tileFolder);
-            if (!AssetDatabase.CopyAsset(CampLoopScenePath, target.scenePath)) return "Could not copy " + CampLoopScenePath + " to " + target.scenePath;
+            if (!AssetDatabase.CopyAsset(TemplateScenePath, target.scenePath)) return "Could not copy " + TemplateScenePath + " to " + target.scenePath;
             EditorSceneManager.OpenScene(target.scenePath, OpenSceneMode.Single);
 
             DetachCopiedTilesAndRoads();
@@ -229,6 +232,8 @@ public static class TerrainTestWorldBuilder
         }
         foreach (TerrainRoad road in UnityEngine.Object.FindObjectsByType<TerrainRoad>(FindObjectsInactive.Include))
             UnityEngine.Object.DestroyImmediate(road.gameObject);
+        foreach (TerrainRegion copiedRegion in UnityEngine.Object.FindObjectsByType<TerrainRegion>(FindObjectsInactive.Include))
+            UnityEngine.Object.DestroyImmediate(copiedRegion.gameObject);
     }
 
     static void EnsureFolder(string folderPath)

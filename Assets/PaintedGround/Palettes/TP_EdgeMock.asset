@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e02ccaa0a12700f4dbe8d7043040226a, type: 3}
+  m_Name: TP_EdgeMock
+  m_EditorClassIdentifier: StitchPunk.Data::TerrainPalette
+  dirt:
+    displayName: Dirt
+    layerTexture: {fileID: 2800000, guid: 87624aede71e4de79a0c248647557e13, type: 3}
+    tileSizeMetres: 8
+    tint: {r: 1, g: 1, b: 1, a: 1}
+    navCostByte: 1
+    footstepSoundId: 0
+  grass:
+    displayName: Grass
+    layerTexture: {fileID: 2800000, guid: 7af1194c7a6945cf8f1803cdf2855099, type: 3}
+    tileSizeMetres: 8
+    tint: {r: 1, g: 1, b: 1, a: 1}
+    navCostByte: 1
+    footstepSoundId: 0
+  forest:
+    displayName: Forest
+    layerTexture: {fileID: 2800000, guid: 4a7b5f1a2ecc430490bea2a1418b1bdf, type: 3}
+    tileSizeMetres: 8
+    tint: {r: 1, g: 1, b: 1, a: 1}
+    navCostByte: 1
+    footstepSoundId: 0
+  stone:
+    displayName: Stone
+    layerTexture: {fileID: 2800000, guid: 49c3c191dbe44110975720e06e7fc533, type: 3}
+    tileSizeMetres: 8
+    tint: {r: 1, g: 1, b: 1, a: 1}
+    navCostByte: 1
+    footstepSoundId: 0
+  edgeFringeStrip: {fileID: 2800000, guid: b814c64dc471e42478868629ea691943, type: 3}
+  fringeSizeMetres: 3
+  fringeStretch: 1
+  cliffTexture: {fileID: 2800000, guid: cf14ec1a21328eb4ebf456a969412c48, type: 3}
+  cliffTileSizeMetres: 6

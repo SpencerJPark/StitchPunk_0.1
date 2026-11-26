@@ -150,6 +150,17 @@ public static class TerrainProceduralGenerator
         float slopeAlongZ = (AnalyticHeightAt(profile, worldX, worldZ + 1f) - AnalyticHeightAt(profile, worldX, worldZ - 1f)) * 0.5f;
         float slopeDegrees = Mathf.Atan(Mathf.Sqrt(slopeAlongX * slopeAlongX + slopeAlongZ * slopeAlongZ)) * Mathf.Rad2Deg;
 
+        // Warp + per-rule rotation affect the rule noise only; height and slope stay at the true position.
+        float2 warpedPosition = new float2(worldX, worldZ);
+        if (profile.biomeNoiseWarpMetres > 0f)
+        {
+            float2 warpSamplePosition = warpedPosition * profile.biomeNoiseWarpFrequency + seedOffset;
+            float2 warpOffsetMetres = new float2(
+                noise.snoise(warpSamplePosition + new float2(37.1f, 11.7f)),
+                noise.snoise(warpSamplePosition + new float2(-19.3f, 53.9f))) * profile.biomeNoiseWarpMetres;
+            warpedPosition += warpOffsetMetres;
+        }
+
         TerrainSplatLayer chosenLayer = TerrainSplatLayer.Dirt;
         for (int ruleIndex = 0; ruleIndex < profile.biomeRules.Count; ruleIndex++)
         {
@@ -157,7 +168,18 @@ public static class TerrainProceduralGenerator
             if (height < rule.heightRange.x || height > rule.heightRange.y) continue;
             if (slopeDegrees < rule.slopeRangeDegrees.x || slopeDegrees > rule.slopeRangeDegrees.y) continue;
 
-            float2 ruleNoisePosition = new float2(worldX, worldZ) * rule.noiseFrequency + seedOffset + new float2(ruleIndex * 17.3f, 0f);
+            float2 ruleSamplePosition = warpedPosition;
+            if (profile.biomeNoiseRotationDegrees != 0f)
+            {
+                float rotationRadians = math.radians((ruleIndex + 1) * profile.biomeNoiseRotationDegrees);
+                float rotationSine = math.sin(rotationRadians);
+                float rotationCosine = math.cos(rotationRadians);
+                ruleSamplePosition = new float2(
+                    warpedPosition.x * rotationCosine - warpedPosition.y * rotationSine,
+                    warpedPosition.x * rotationSine + warpedPosition.y * rotationCosine);
+            }
+
+            float2 ruleNoisePosition = ruleSamplePosition * rule.noiseFrequency + seedOffset + new float2(ruleIndex * 17.3f, 0f);
             float ruleNoise01 = noise.snoise(ruleNoisePosition) * 0.5f + 0.5f;
             if (ruleNoise01 * rule.weight >= rule.noiseThreshold)
                 chosenLayer = rule.layer;

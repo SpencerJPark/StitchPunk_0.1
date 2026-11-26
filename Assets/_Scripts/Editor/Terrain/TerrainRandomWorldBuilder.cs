@@ -10,6 +10,7 @@ using UnityEngine.Splines;
 public static class TerrainRandomWorldBuilder
 {
     const string GenerationProfileName = "RandomWorldGeneration.asset";
+    const string EdgeMockPalettePath = "Assets/PaintedGround/Palettes/TP_EdgeMock.asset";
     const string WaterProfileName = "RandomWorldWater.asset";
     const string RoadsRootName = "RandomWorldRoads";
     const string WaterRootName = "RandomWorldWater";
@@ -64,6 +65,9 @@ public static class TerrainRandomWorldBuilder
                 new TerrainHeightLayer { frequencyPerMetre = 0.02f, amplitudeMetres = 1.2f, octaves = 2, lacunarity = 2f, gain = 0.5f }
             };
             profile.heightRemap = new AnimationCurve(new Keyframe(0f, 0f), new Keyframe(0.45f, 0.1f), new Keyframe(1f, 1f));
+            profile.biomeNoiseWarpMetres = 11f;
+            profile.biomeNoiseWarpFrequency = 0.035f;
+            profile.biomeNoiseRotationDegrees = 27f;
             TerrainWorldRecipe recipe = TerrainWorldRecipeBuilder.Build(seed, tilesPerSide, profile);
             profile = TerrainTestWorldContent.CreateAssetInTestFolder(profile, GenerationProfileName);
             if (profile == null) return;
@@ -77,6 +81,8 @@ public static class TerrainRandomWorldBuilder
             region.boundsMax = new Vector3(boundsHalf, 600f, boundsHalf);
             region.mode = TerrainRegionMode.Procedural;
             region.profile = profile;
+            // Mock-up ground textures that match the edge-tile sets; generation still works with the material defaults if it is missing.
+            region.paletteOverride = AssetDatabase.LoadAssetAtPath<TerrainPalette>(EdgeMockPalettePath);
             TerrainGenerateTool.Generate(region, true, (progress, label) => ReportStep("Generating: " + label, 0.05f + progress * 0.25f));
 
             ReportStep("Opening tiles", 0.32f);
