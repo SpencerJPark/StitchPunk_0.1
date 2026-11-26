@@ -189,3 +189,22 @@ Owner verdict on r3: the bevel SIZE is right, but there is literally no edge. Th
 - A6: Ramps: surface continuous with the ground, no hole at the top or bottom, side walls with the same face and edges, and the side-wall corners blend into the plateau wall.
 - A7: No specks, no regular sawtooth, no z-fighting, no seam at tile borders (tile 0_0 to -1_0).
 - A8: Swap test: the orchestrator swaps `T_V_Grass` in the palette for another PNG, presses Apply, and the scene changes. The guide's steps work as written.
+
+### Round 4 verdict (orchestrator, 2026-11-25): FAIL. Branch spec/terraces-r4-edges at 9143b8e7, which already merges r4-art.
+Gate: compile clean, 15/17. `RampTopEndLeavesNoHoleInThePlateauSurface` fails in both cases ("pit at (-3.50,-19.50), expected 3.0, was -6.0"), so the ramp-top hole fix does not work. Captures: `r4_01`..`r4_07`.
+- **A1 FAIL: the edge reads as a separate curb.** On stone, the top edge is a lighter uniform ribbon along the rim with a tiny comb of teeth (r4_07). In the references the edge IS the ground: the same texture runs to the rim and breaks into big irregular lumps, 0.2-0.6 m, with wispy ink strokes; see the new owner reference `References/edgesSample.png` (turf-edge atlas). The edge body must reuse the ground's own texture (or be indistinguishable from it), and only the silhouette differs. The lumps must be 10x bigger.
+- **A2 PASS (partly):** stone edges on stone and grass edges on grass (r4_02). Too fine to read at gameplay zoom.
+- **A3 FAIL:** the foot edge has the same curb look (r4_01).
+- **A4 PARTLY:**
+  - Crisp, no smear, good scale.
+  - But the columns are evenly spaced stripes that read as bark or wood planks. Needs chunky irregular columns, horizontal ledges and breaks, and darker AO toward the foot.
+- **A5 FAIL:**
+  - Straight dark grid lines cross the ground at regular intervals: across the road (r4_06, r4_02) and on grass (r4_03). Also faint dotted rectangles on grass. A leftover painterly/ink overlay or a tile-cell artefact; find and kill it.
+  - Grass tufts are about 1 m wide and read as stamps; they should be half that size and less uniform.
+- **A6 FAIL:**
+  - The ramp-top hole is still there.
+  - The ramp surface shows a straight seam line down its centre (r4_03).
+  - The ramp top junction shows a ragged band.
+- **A7 FAIL:** the grid lines above.
+- **A8 untested:** the palette was not applied by the terrace build (TerraceDressing's `_EdgeTex1` = none). Only a manual `ApplyToTerraceWallMaterial` call wired it, so the reflection hook in `TerraceTileAssembly.ApplyPaletteToTerraceMaterial` does not reach `TerrainActivePalette`.
+- **Tooling FAIL:** in the Editor, `Generate Vector Mock Textures` ran for more than 8 minutes on the main thread and froze Unity; the Editor had to be killed. It must finish in under 20 s (Burst/jobs, or Parallel.For over rows, or a smaller canvas with supersampling only on outlines).
