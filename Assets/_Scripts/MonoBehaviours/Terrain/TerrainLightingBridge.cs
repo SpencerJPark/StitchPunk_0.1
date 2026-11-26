@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 // Pushes the shader globals PaintedGroundCore.hlsl reads; w = 0 on the ambient vector means no effect.
 [ExecuteAlways]
@@ -19,7 +20,9 @@ public class TerrainLightingBridge : MonoBehaviour
     static readonly int InkDetailParamsPropertyId = Shader.PropertyToID("_StitchInkDetailParams");
     static readonly int TransitionCellMetresPropertyId = Shader.PropertyToID("_StitchTransitionCellMetres");
     const string GroundEdgeTilesKeyword = "_GROUND_EDGE_TILES";
-    static readonly int GroundEdgeTileAtlasPropertyId = Shader.PropertyToID("_GroundEdgeTileAtlas");
+    static readonly int GroundEdgeTileAtlasGrassPropertyId = Shader.PropertyToID("_GroundEdgeTileAtlasR");
+    static readonly int GroundEdgeTileAtlasForestPropertyId = Shader.PropertyToID("_GroundEdgeTileAtlasG");
+    static readonly int GroundEdgeTileAtlasStonePropertyId = Shader.PropertyToID("_GroundEdgeTileAtlasB");
     static readonly int GroundEdgeTileCellMetresPropertyId = Shader.PropertyToID("_GroundEdgeTileCellMetres");
 
     public Color ambientTint = Color.white;
@@ -69,8 +72,13 @@ public class TerrainLightingBridge : MonoBehaviour
     [Header("Edge tiles")]
     public bool edgeTilesEnabled = true;
 
-    [Tooltip("16-case edge tile atlas, 8 x 4 cells of 128 px (R coverage, G rim, B ink). Packed by Tools/terrain_edge_mock/export_transition_atlas.py.")]
-    public Texture2D edgeTileAtlas;
+    // One 16-case atlas per splat layer (8 x 4 cells of 128 px, R coverage, G rim, B ink), packed by Tools/terrain_edge_mock/export_transition_atlas.py.
+    [Tooltip("Splat R layer: Grass drawn over Dirt.")]
+    [FormerlySerializedAs("edgeTileAtlas")] public Texture2D grassEdgeTileAtlas;
+    [Tooltip("Splat G layer: Forest drawn over what is below it.")]
+    public Texture2D forestEdgeTileAtlas;
+    [Tooltip("Splat B layer: Stone drawn over what is below it.")]
+    public Texture2D stoneEdgeTileAtlas;
 
     [Min(0.5f)] public float edgeTileCellMetres = 2f;
 
@@ -117,12 +125,15 @@ public class TerrainLightingBridge : MonoBehaviour
 
     void PushEdgeTileGlobals()
     {
-        if (!edgeTilesEnabled || edgeTileAtlas == null)
+        if (!edgeTilesEnabled || grassEdgeTileAtlas == null)
         {
             Shader.DisableKeyword(GroundEdgeTilesKeyword);
             return;
         }
-        Shader.SetGlobalTexture(GroundEdgeTileAtlasPropertyId, edgeTileAtlas);
+        // An unset global texture samples grey (coverage 0.5 everywhere), so a missing layer borrows the grass set.
+        Shader.SetGlobalTexture(GroundEdgeTileAtlasGrassPropertyId, grassEdgeTileAtlas);
+        Shader.SetGlobalTexture(GroundEdgeTileAtlasForestPropertyId, forestEdgeTileAtlas != null ? forestEdgeTileAtlas : grassEdgeTileAtlas);
+        Shader.SetGlobalTexture(GroundEdgeTileAtlasStonePropertyId, stoneEdgeTileAtlas != null ? stoneEdgeTileAtlas : grassEdgeTileAtlas);
         Shader.SetGlobalFloat(GroundEdgeTileCellMetresPropertyId, edgeTileCellMetres);
         Shader.EnableKeyword(GroundEdgeTilesKeyword);
     }

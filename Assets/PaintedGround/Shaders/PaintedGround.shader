@@ -237,7 +237,10 @@ Shader "Painted/Ground"
             TEXTURE2D(_StitchInkDetailGTex);
             TEXTURE2D(_StitchInkDetailBTex);
             TEXTURE2D(_StitchTransitionAtlas);
-            TEXTURE2D(_GroundEdgeTileAtlas);     // global, outside the material CBUFFER
+            // Globals outside the material CBUFFER; R = grass over dirt, G = forest, B = stone; set by TerrainLightingBridge.
+            TEXTURE2D(_GroundEdgeTileAtlasR);
+            TEXTURE2D(_GroundEdgeTileAtlasG);
+            TEXTURE2D(_GroundEdgeTileAtlasB);
             float  _GroundEdgeTileCellMetres;
             float4 _StitchInkDetailTileMetres;   // world metres per detail tile: Base, R, G, B
             float4 _StitchInkDetailParams;       // x = line, y = tone, z = scratch strength, w = flatten painted texture
@@ -362,11 +365,11 @@ Shader "Painted/Ground"
                 float3 edgeCornerTopRight    = SAMPLE_TEXTURE2D_LOD(_SplatMap, sampler_linear_clamp, (edgeCellOrigin + edgeTileCellMetres - _SplatBounds.xy) * edgeSplatScale, 0).rgb;
                 float3 edgeCornerBottomRight = SAMPLE_TEXTURE2D_LOD(_SplatMap, sampler_linear_clamp, (edgeCellOrigin + float2(edgeTileCellMetres, 0) - _SplatBounds.xy) * edgeSplatScale, 0).rgb;
                 float3 edgeCornerBottomLeft  = SAMPLE_TEXTURE2D_LOD(_SplatMap, sampler_linear_clamp, (edgeCellOrigin - _SplatBounds.xy) * edgeSplatScale, 0).rgb;
-                PaintedTransitionTile_float(_GroundEdgeTileAtlas, sampler_linear_clamp, float4(edgeCornerTopLeft.r, edgeCornerTopRight.r, edgeCornerBottomRight.r, edgeCornerBottomLeft.r),
+                PaintedTransitionTile_float(_GroundEdgeTileAtlasR, sampler_linear_clamp, float4(edgeCornerTopLeft.r, edgeCornerTopRight.r, edgeCornerBottomRight.r, edgeCornerBottomLeft.r),
                                             edgeCellCoordinate, 0.0, layerRColour, col, ink, rim, col, ink, rim);
-                PaintedTransitionTile_float(_GroundEdgeTileAtlas, sampler_linear_clamp, float4(edgeCornerTopLeft.g, edgeCornerTopRight.g, edgeCornerBottomRight.g, edgeCornerBottomLeft.g),
+                PaintedTransitionTile_float(_GroundEdgeTileAtlasG, sampler_linear_clamp, float4(edgeCornerTopLeft.g, edgeCornerTopRight.g, edgeCornerBottomRight.g, edgeCornerBottomLeft.g),
                                             edgeCellCoordinate, 17.0, layerGColour, col, ink, rim, col, ink, rim);
-                PaintedTransitionTile_float(_GroundEdgeTileAtlas, sampler_linear_clamp, float4(edgeCornerTopLeft.b, edgeCornerTopRight.b, edgeCornerBottomRight.b, edgeCornerBottomLeft.b),
+                PaintedTransitionTile_float(_GroundEdgeTileAtlasB, sampler_linear_clamp, float4(edgeCornerTopLeft.b, edgeCornerTopRight.b, edgeCornerBottomRight.b, edgeCornerBottomLeft.b),
                                             edgeCellCoordinate, 31.0, layerBColour, col, ink, rim, col, ink, rim);
             #elif defined(STITCH_INK_LOOK) && defined(_SPLAT_WORLDTEXTURE)
                 // Four corner taps shared by all three channels; a corner's world position gives the same value in every cell that owns it.

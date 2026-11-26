@@ -16105,7 +16105,9 @@ MonoBehaviour:
   transitionCellMetres: 4
   inkColor: {r: 0.17, g: 0.12, b: 0.09, a: 1}
   edgeTilesEnabled: 1
-  edgeTileAtlas: {fileID: 2800000, guid: 2ec54200bdc6e8344af42cb0579b74b4, type: 3}
+  grassEdgeTileAtlas: {fileID: 2800000, guid: 2ec54200bdc6e8344af42cb0579b74b4, type: 3}
+  forestEdgeTileAtlas: {fileID: 2800000, guid: fa40bd1a2da442cf84a5ee4435f4d8ee, type: 3}
+  stoneEdgeTileAtlas: {fileID: 2800000, guid: fce7609063134f30ac36d737469cfaeb, type: 3}
   edgeTileCellMetres: 2
 --- !u!114 &536606667
 MonoBehaviour:
