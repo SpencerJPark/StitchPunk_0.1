@@ -253,6 +253,26 @@ public static class TerrainScatterGenerator
         return doomed.Count;
     }
 
+    [MenuItem("Stitch Punk/Terrain/Face Tree Cards South (Open Scenes)")]
+    static void FaceBillboardCardsSouthInOpenScenes()
+    {
+        int rotatedCount = 0;
+        List<UnityEngine.SceneManagement.Scene> changedScenes = new List<UnityEngine.SceneManagement.Scene>();
+        foreach (VisualBillboardAuthoring billboardCard in Object.FindObjectsByType<VisualBillboardAuthoring>(FindObjectsInactive.Include))
+        {
+            if (billboardCard.transform.rotation == Quaternion.identity)
+                continue;
+            Undo.RecordObject(billboardCard.transform, "Face Tree Cards South");
+            billboardCard.transform.rotation = Quaternion.identity;
+            rotatedCount++;
+            if (!changedScenes.Contains(billboardCard.gameObject.scene))
+                changedScenes.Add(billboardCard.gameObject.scene);
+        }
+        foreach (UnityEngine.SceneManagement.Scene changedScene in changedScenes)
+            EditorSceneManager.MarkSceneDirty(changedScene);
+        Debug.Log("[Terrain] Faced " + rotatedCount + " billboard cards south (-Z) in " + changedScenes.Count + " scene(s); save to keep.");
+    }
+
     public static bool IsFlatBillboardCard(GameObject prefab)
     {
         return prefab != null && prefab.GetComponentInChildren<VisualBillboardAuthoring>(true) != null;
