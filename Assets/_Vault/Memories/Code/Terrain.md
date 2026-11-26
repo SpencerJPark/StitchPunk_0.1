@@ -100,6 +100,10 @@ related: "[[Editor]], [[Data]], [[Gotchas]]"
 `Painted/Ground` has two off-by-default keywords from the Ink Look experiment: ink detail sheets and Don't Starve-style
 tile transitions (grid-snapped marching squares off the same SDF corners). See `Shaders.md`, "Ink look experiment".
 
+## Edge tiles (spec 2026-11-25, not built)
+`Tasks/Plans/TerrainEdgeTiles_System.md` replaces that transition experiment: a 16-case dual-grid tile set on 2 m cells, biome id per
+corner derived by the compositor, per-pair edge sets. Drawing rules + templates: `Docs/Terrain/TerrainEdgeTileGuide.md`.
+
 ## Traps
 - Tile subscenes are `AutoLoadScene=false` and draw nothing in the Scene view when closed; `TerrainOpenTilesSessionRestore` (TerrainTilesPanel.cs) reopens every `Tile_*` subscene for ~10 s after a reload, scene open or Play exit. Closing a tile on purpose lasts until the next one of those.
 - A test that creates GameObjects in the ACTIVE scene can leak them, and any later `SaveScene(active)` (tile creation does this) writes them into CampLoop.unity (it grew by 100k lines). Scatter tests run in `EditorSceneManager.NewPreviewScene()` (an additive `NewScene` throws "untitled scene unsaved" because the test runner leaves an untitled scene open); check `git diff --stat Assets/Scenes/CampLoop.unity` after any test run that touches scene objects.
