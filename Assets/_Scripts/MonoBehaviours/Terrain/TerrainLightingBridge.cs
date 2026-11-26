@@ -18,6 +18,9 @@ public class TerrainLightingBridge : MonoBehaviour
     static readonly int InkDetailTileMetresPropertyId = Shader.PropertyToID("_StitchInkDetailTileMetres");
     static readonly int InkDetailParamsPropertyId = Shader.PropertyToID("_StitchInkDetailParams");
     static readonly int TransitionCellMetresPropertyId = Shader.PropertyToID("_StitchTransitionCellMetres");
+    const string GroundEdgeTilesKeyword = "_GROUND_EDGE_TILES";
+    static readonly int GroundEdgeTileAtlasPropertyId = Shader.PropertyToID("_GroundEdgeTileAtlas");
+    static readonly int GroundEdgeTileCellMetresPropertyId = Shader.PropertyToID("_GroundEdgeTileCellMetres");
 
     public Color ambientTint = Color.white;
 
@@ -63,6 +66,14 @@ public class TerrainLightingBridge : MonoBehaviour
     [Tooltip("One pen for detail lines and edges.")]
     public Color inkColor = new Color(0.17f, 0.12f, 0.09f, 1f);
 
+    [Header("Edge tiles")]
+    public bool edgeTilesEnabled = true;
+
+    [Tooltip("16-case edge tile atlas, 8 x 4 cells of 128 px (R coverage, G rim, B ink). Packed by Tools/terrain_edge_mock/export_transition_atlas.py.")]
+    public Texture2D edgeTileAtlas;
+
+    [Min(0.5f)] public float edgeTileCellMetres = 2f;
+
     float currentFlash;
     float flashDecayPerSecond;
 
@@ -88,6 +99,7 @@ public class TerrainLightingBridge : MonoBehaviour
         Shader.SetGlobalFloat(ShadowSofteningPropertyId, shadowSoftening);
         Shader.SetGlobalFloat(ShadowBandHardnessPropertyId, shadowBandHardness);
         PushInkLookGlobals();
+        PushEdgeTileGlobals();
         // Decay after the push so a seconds <= 0 strike is visible for exactly one frame.
         currentFlash = AdvanceFlash(currentFlash, flashDecayPerSecond, Time.unscaledDeltaTime);
     }
@@ -100,6 +112,19 @@ public class TerrainLightingBridge : MonoBehaviour
         Shader.SetGlobalFloat(ShadowSofteningPropertyId, 0f);
         Shader.SetGlobalFloat(ShadowBandHardnessPropertyId, 0f);
         Shader.DisableKeyword(InkLookKeyword);
+        Shader.DisableKeyword(GroundEdgeTilesKeyword);
+    }
+
+    void PushEdgeTileGlobals()
+    {
+        if (!edgeTilesEnabled || edgeTileAtlas == null)
+        {
+            Shader.DisableKeyword(GroundEdgeTilesKeyword);
+            return;
+        }
+        Shader.SetGlobalTexture(GroundEdgeTileAtlasPropertyId, edgeTileAtlas);
+        Shader.SetGlobalFloat(GroundEdgeTileCellMetresPropertyId, edgeTileCellMetres);
+        Shader.EnableKeyword(GroundEdgeTilesKeyword);
     }
 
     bool InkLookReady()

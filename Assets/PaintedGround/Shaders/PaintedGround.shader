@@ -207,6 +207,8 @@ Shader "Painted/Ground"
             #pragma shader_feature_local_fragment _CLIFFS
             // Global, set by TerrainLightingBridge: ink detail and Don't Starve tile edges on every ground material at once.
             #pragma multi_compile_fragment _ STITCH_INK_LOOK
+            // Global, enabled by a C# bridge with Shader.EnableKeyword: 16-case edge tiles on the normal ground look.
+            #pragma multi_compile_fragment _ _GROUND_EDGE_TILES
 
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
@@ -235,6 +237,8 @@ Shader "Painted/Ground"
             TEXTURE2D(_StitchInkDetailGTex);
             TEXTURE2D(_StitchInkDetailBTex);
             TEXTURE2D(_StitchTransitionAtlas);
+            TEXTURE2D(_GroundEdgeTileAtlas);     // global, outside the material CBUFFER
+            float  _GroundEdgeTileCellMetres;
             float4 _StitchInkDetailTileMetres;   // world metres per detail tile: Base, R, G, B
             float4 _StitchInkDetailParams;       // x = line, y = tone, z = scratch strength, w = flatten painted texture
             float  _StitchTransitionCellMetres;
@@ -348,7 +352,23 @@ Shader "Painted/Ground"
                 float3 layerGColour = InkedLayer(TEXTURE2D_ARGS(_LayerGTex, sampler_BaseTex), TEXTURE2D_ARGS(_StitchInkDetailGTex, sampler_BaseTex), wxz, _TileSizes.z, _StitchInkDetailTileMetres.z, patchMask);
                 float3 layerBColour = InkedLayer(TEXTURE2D_ARGS(_LayerBTex, sampler_BaseTex), TEXTURE2D_ARGS(_StitchInkDetailBTex, sampler_BaseTex), wxz, _TileSizes.w, _StitchInkDetailTileMetres.w, patchMask);
                 float  ink = 0, rim = 0;
-            #if defined(STITCH_INK_LOOK) && defined(_SPLAT_WORLDTEXTURE)
+            #if defined(_GROUND_EDGE_TILES) && defined(_SPLAT_WORLDTEXTURE)
+                // Same corner-tap scheme as the ink look below, on the edge-tile atlas; ink goes through PaintedFinish with the material's _InkColor.
+                float  edgeTileCellMetres = max(_GroundEdgeTileCellMetres, 0.1);
+                float2 edgeCellCoordinate = wxz / edgeTileCellMetres;
+                float2 edgeCellOrigin = floor(edgeCellCoordinate) * edgeTileCellMetres;
+                float2 edgeSplatScale = 1.0 / max(_SplatBounds.zw, 0.001);
+                float3 edgeCornerTopLeft     = SAMPLE_TEXTURE2D_LOD(_SplatMap, sampler_linear_clamp, (edgeCellOrigin + float2(0, edgeTileCellMetres) - _SplatBounds.xy) * edgeSplatScale, 0).rgb;
+                float3 edgeCornerTopRight    = SAMPLE_TEXTURE2D_LOD(_SplatMap, sampler_linear_clamp, (edgeCellOrigin + edgeTileCellMetres - _SplatBounds.xy) * edgeSplatScale, 0).rgb;
+                float3 edgeCornerBottomRight = SAMPLE_TEXTURE2D_LOD(_SplatMap, sampler_linear_clamp, (edgeCellOrigin + float2(edgeTileCellMetres, 0) - _SplatBounds.xy) * edgeSplatScale, 0).rgb;
+                float3 edgeCornerBottomLeft  = SAMPLE_TEXTURE2D_LOD(_SplatMap, sampler_linear_clamp, (edgeCellOrigin - _SplatBounds.xy) * edgeSplatScale, 0).rgb;
+                PaintedTransitionTile_float(_GroundEdgeTileAtlas, sampler_linear_clamp, float4(edgeCornerTopLeft.r, edgeCornerTopRight.r, edgeCornerBottomRight.r, edgeCornerBottomLeft.r),
+                                            edgeCellCoordinate, 0.0, layerRColour, col, ink, rim, col, ink, rim);
+                PaintedTransitionTile_float(_GroundEdgeTileAtlas, sampler_linear_clamp, float4(edgeCornerTopLeft.g, edgeCornerTopRight.g, edgeCornerBottomRight.g, edgeCornerBottomLeft.g),
+                                            edgeCellCoordinate, 17.0, layerGColour, col, ink, rim, col, ink, rim);
+                PaintedTransitionTile_float(_GroundEdgeTileAtlas, sampler_linear_clamp, float4(edgeCornerTopLeft.b, edgeCornerTopRight.b, edgeCornerBottomRight.b, edgeCornerBottomLeft.b),
+                                            edgeCellCoordinate, 31.0, layerBColour, col, ink, rim, col, ink, rim);
+            #elif defined(STITCH_INK_LOOK) && defined(_SPLAT_WORLDTEXTURE)
                 // Four corner taps shared by all three channels; a corner's world position gives the same value in every cell that owns it.
                 float  transitionCellMetres = max(_StitchTransitionCellMetres, 0.1);
                 float2 cellCoordinate = wxz / transitionCellMetres;

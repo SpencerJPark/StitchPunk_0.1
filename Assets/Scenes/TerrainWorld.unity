@@ -16104,6 +16104,9 @@ MonoBehaviour:
   flattenPaintedTextures: 1
   transitionCellMetres: 4
   inkColor: {r: 0.17, g: 0.12, b: 0.09, a: 1}
+  edgeTilesEnabled: 1
+  edgeTileAtlas: {fileID: 2800000, guid: 2ec54200bdc6e8344af42cb0579b74b4, type: 3}
+  edgeTileCellMetres: 2
 --- !u!114 &536606667
 MonoBehaviour:
   m_ObjectHideFlags: 0
