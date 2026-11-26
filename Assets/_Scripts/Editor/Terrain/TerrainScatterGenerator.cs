@@ -253,6 +253,11 @@ public static class TerrainScatterGenerator
         return doomed.Count;
     }
 
+    public static bool IsFlatBillboardCard(GameObject prefab)
+    {
+        return prefab != null && prefab.GetComponentInChildren<VisualBillboardAuthoring>(true) != null;
+    }
+
     private static GameObject InstantiateScatterInstance(Transform scatterParent, GameObject prefab, TerrainScatterPlacement placement, TerrainScatterRuleData ruleData)
     {
         GameObject instance = PrefabUtility.InstantiatePrefab(prefab, scatterParent.gameObject.scene) as GameObject;
@@ -262,8 +267,17 @@ public static class TerrainScatterGenerator
         }
         Vector3 prefabScale = prefab.transform.localScale;
         instance.transform.SetParent(scatterParent, true);
-        Quaternion yaw = Quaternion.Euler(0f, placement.yawDegrees, 0f);
-        Quaternion rotation = ruleData.alignToNormal ? Quaternion.FromToRotation(Vector3.up, placement.normal) * yaw : yaw;
+        Quaternion rotation;
+        if (IsFlatBillboardCard(prefab))
+        {
+            // 2D cards (trees) are placed upright facing -Z, toward the fixed game camera, like units; any yaw or tilt shows them edge-on.
+            rotation = Quaternion.identity;
+        }
+        else
+        {
+            Quaternion yaw = Quaternion.Euler(0f, placement.yawDegrees, 0f);
+            rotation = ruleData.alignToNormal ? Quaternion.FromToRotation(Vector3.up, placement.normal) * yaw : yaw;
+        }
         instance.transform.SetPositionAndRotation(placement.position, rotation);
         instance.transform.localScale = prefabScale * placement.scale;
         instance.name = prefab.name;

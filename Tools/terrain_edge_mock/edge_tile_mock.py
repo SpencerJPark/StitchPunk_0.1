@@ -23,7 +23,7 @@ CANVAS = CELL * SUPERSAMPLE
 CROSSING_STRAIGHT_PIXELS = 16
 SAFE_MARGIN = 8
 PIXELS_PER_METRE = 64
-INK = (46, 35, 27)
+INK = (16, 12, 10)
 
 DIRT, GRASS, FOREST, STONE = 0, 1, 2, 3
 BIOME_NAMES = {DIRT: "Dirt", GRASS: "Grass", FOREST: "Forest", STONE: "Stone"}
@@ -120,8 +120,8 @@ def segment_samples(segment, step):
 
 
 def crossing_window(side_distance):
-    """0 within the straight 16 px next to a side, 1 from 48 px in: the edge may only wobble where this is > 0."""
-    normalised = np.clip((np.asarray(side_distance) - CROSSING_STRAIGHT_PIXELS) / 32.0, 0.0, 1.0)
+    """0 within the straight 16 px next to a side, 1 from 32 px in: the edge may only wobble where this is > 0."""
+    normalised = np.clip((np.asarray(side_distance) - CROSSING_STRAIGHT_PIXELS) / 16.0, 0.0, 1.0)
     return normalised * normalised * (3.0 - 2.0 * normalised)
 
 
@@ -162,12 +162,12 @@ FILL_COLOURS = {
     STONE: [(139, 135, 123), (150, 146, 133), (126, 122, 111)],
 }
 
-TURF_STYLE = dict(clump_width=(8.0, 18.0), clump_height=(10.0, 32.0), clump_spacing=(14.0, 32.0),
-                  clump_baseline=14.0, ripple=1.5, bend=30.0, chipped=False)
-FOREST_STYLE = dict(clump_width=(10.0, 20.0), clump_height=(12.0, 28.0), clump_spacing=(18.0, 34.0),
-                    clump_baseline=14.0, ripple=1.5, bend=32.0, chipped=False)
-STONE_STYLE = dict(clump_width=(12.0, 26.0), clump_height=(5.0, 14.0), clump_spacing=(14.0, 30.0),
-                   clump_baseline=7.0, ripple=0.4, bend=24.0, chipped=True)
+TURF_STYLE = dict(clump_width=(14.0, 22.0), clump_height=(60.0, 80.0), clump_spacing=(60.0, 84.0),
+                  clump_baseline=30.0, ripple=1.0, bend=6.0, chipped=False)
+FOREST_STYLE = dict(clump_width=(14.0, 22.0), clump_height=(60.0, 80.0), clump_spacing=(60.0, 84.0),
+                    clump_baseline=30.0, ripple=1.0, bend=6.0, chipped=False)
+STONE_STYLE = dict(clump_width=(30.0, 46.0), clump_height=(56.0, 76.0), clump_spacing=(60.0, 84.0),
+                   clump_baseline=28.0, ripple=0.4, bend=6.0, chipped=True)
 LIP_STYLE = dict(clump_width=(6.0, 13.0), clump_height=(5.0, 15.0), clump_spacing=(10.0, 22.0),
                  clump_baseline=6.0, ripple=1.0, bend=4.0, chipped=False)
 
@@ -236,11 +236,33 @@ def draw_piece_strokes(stroke_layer, piece_name, profiles, set_definition, rando
                 shadow_layer = Image.new("RGBA", stroke_layer.size, (0, 0, 0, 0))
                 draw_tapered(ImageDraw.Draw(shadow_layer), shadow_band, 6.0, 6.0, INK + (80,))
                 stroke_layer.alpha_composite(shadow_layer)
-            outline = [(point[0], point[1]) for point in boundary_points]
-            draw_tapered(draw, outline, 3.4, 3.4, INK)
+            outline = [(point[0], point[1]) for point in boundary_points if point[4] > 12.0]
+            draw_tapered(draw, outline, 7.0, 7.0, INK)
             highlight = [(point[0] - point[2] * 4.5, point[1] - point[3] * 4.5) for point in boundary_points
                          if float(crossing_window(point[4])) > 0.6]
             draw_tapered(draw, highlight, 2.4, 2.4, shade(upper_colours[1], 1.12)) if highlight else None
+
+        if stroke_kind in ("turf", "forest"):
+            run_start = None
+            run_length = 0
+            for point_index, boundary_point in enumerate(boundary_points):
+                inked = float(crossing_window(boundary_point[4])) > 0.15 and boundary_point[4] > 10.0
+                if inked and run_start is None:
+                    run_start = point_index
+                    run_length = int(random_generator.uniform(40, 110))
+                if run_start is not None and (not inked or point_index - run_start >= run_length):
+                    run_points = [(point[0], point[1]) for point in boundary_points[run_start:point_index]]
+                    if len(run_points) > 2 and inside_safe_margin(run_points):
+                        draw_tapered(draw, run_points, 6.5 if stroke_kind == "forest" else 5.0, 3.2 if stroke_kind == "forest" else 2.6, INK)
+                    run_start = None if not inked else point_index + int(random_generator.uniform(5, 12))
+                    if run_start is not None and run_start >= len(boundary_points):
+                        run_start = None
+                    if run_start is not None:
+                        run_length = int(random_generator.uniform(40, 110))
+            if run_start is not None:
+                run_points = [(point[0], point[1]) for point in boundary_points[run_start:]]
+                if len(run_points) > 2 and inside_safe_margin(run_points):
+                    draw_tapered(draw, run_points, 6.5 if stroke_kind == "forest" else 5.0, 3.2 if stroke_kind == "forest" else 2.6, INK)
 
         position = random_generator.uniform(4, 12)
         while position < len(boundary_points):
@@ -251,18 +273,18 @@ def draw_piece_strokes(stroke_layer, piece_name, profiles, set_definition, rando
                 continue
             if stroke_kind in ("turf", "forest"):
                 lobe_height = float(profile.evaluate(boundary_points_parameter[int(position)]))
-                if lobe_height < 2.0 and random_generator.random() < 0.75:
+                if lobe_height < 6.0 and random_generator.random() < (0.5 if stroke_kind == "forest" else 0.8):
                     position += random_generator.uniform(3, 6)
                     continue
                 root_depth = random_generator.uniform(3, 9)
-                length = random_generator.uniform(9, 24) if stroke_kind == "turf" else random_generator.uniform(10, 26)
+                length = random_generator.uniform(14, 30)
                 curl = (1 if math.sin(boundary_points_parameter[int(position)] / 23.0) > 0 else -1) * random_generator.uniform(4, 13)
                 root = (point_x - normal_x * root_depth, point_y - normal_y * root_depth)
                 tip = (point_x + normal_x * length + tangent_x * curl, point_y + normal_y * length + tangent_y * curl)
                 control = ((root[0] + tip[0]) / 2 + tangent_x * curl * 0.6, (root[1] + tip[1]) / 2 + tangent_y * curl * 0.6)
                 points = quadratic_points(root, control, tip, 14)
                 if inside_safe_margin(points):
-                    draw_tapered(draw, points, 3.8 if stroke_kind == "turf" else 3.2, 0.7, INK)
+                    draw_tapered(draw, points, random_generator.uniform(5.0, 7.0) if stroke_kind == "turf" else random_generator.uniform(6.0, 8.0), 0.8, INK)
                 if random_generator.random() < 0.55:
                     hair_root = (point_x - normal_x * random_generator.uniform(6, 15),
                                  point_y - normal_y * random_generator.uniform(6, 15))
@@ -281,14 +303,14 @@ def draw_piece_strokes(stroke_layer, piece_name, profiles, set_definition, rando
                     tuft_points = quadratic_points(tuft_root, tuft_root, tuft_tip, 8)
                     if inside_safe_margin(tuft_points):
                         draw_tapered(draw, tuft_points, 4.4, 1.2, shade(upper_colours[1], 1.25))
-                position += random_generator.uniform(4, 10) if stroke_kind == "turf" else random_generator.uniform(6, 12)
+                position += random_generator.uniform(3, 6) if stroke_kind == "turf" else random_generator.uniform(3, 7)
             else:
-                chip_length = random_generator.uniform(4, 10)
+                chip_length = random_generator.uniform(10, 22)
                 chip_tip = (point_x - normal_x * chip_length + tangent_x * random_generator.uniform(-4, 4),
                             point_y - normal_y * chip_length + tangent_y * random_generator.uniform(-4, 4))
                 chip_points = quadratic_points((point_x, point_y), (point_x, point_y), chip_tip, 8)
                 if inside_safe_margin(chip_points):
-                    draw_tapered(draw, chip_points, 2.0, 0.6, INK)
+                    draw_tapered(draw, chip_points, 6.0, 0.8, INK)
                 if stroke_kind == "stone_mossy" and random_generator.random() < 0.6:
                     moss_root = (point_x + normal_x * random_generator.uniform(4, 9), point_y + normal_y * random_generator.uniform(4, 9))
                     moss_tip = (point_x - normal_x * random_generator.uniform(2, 7) + tangent_x * random_generator.uniform(-6, 6),
@@ -297,7 +319,7 @@ def draw_piece_strokes(stroke_layer, piece_name, profiles, set_definition, rando
                                                                (moss_root[1] + moss_tip[1]) / 2 + tangent_y * 3), moss_tip, 10)
                     if inside_safe_margin(moss_points):
                         draw_tapered(draw, moss_points, 3.2, 0.8, FILL_COLOURS[GRASS][2])
-                position += random_generator.uniform(10, 24)
+                position += random_generator.uniform(3, 7)
 
 
 # ---------------------------------------------------------------------------------------------------------
