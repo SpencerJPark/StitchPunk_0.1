@@ -17,16 +17,32 @@ public static class TerrainClosedTilePreview
     static readonly Dictionary<Unity.Entities.Hash128, Entity> previewedSceneEntities = new Dictionary<Unity.Entities.Hash128, Entity>();
     static readonly HashSet<Unity.Entities.Hash128> wantedSceneGuids = new HashSet<Unity.Entities.Hash128>();
     static readonly List<Unity.Entities.Hash128> staleSceneGuids = new List<Unity.Entities.Hash128>();
+    const double IN_FLIGHT_TIMEOUT_SECONDS = 10.0;
+
+    static readonly HashSet<Unity.Entities.Hash128> requestedSceneGuids = new HashSet<Unity.Entities.Hash128>();
+    static bool hasInFlightTile;
+    static Unity.Entities.Hash128 inFlightSceneGuid;
+    static string inFlightTileName;
+    static string nextTileName;
+    static double inFlightStartTime;
     static double nextPollTime;
     static ulong trackedWorldSequenceNumber;
 
     static TerrainClosedTilePreview()
     {
         EditorApplication.update += PollWhileEditing;
+        UnityEditor.SceneManagement.EditorSceneManager.sceneOpened += (UnityEngine.SceneManagement.Scene scene, UnityEditor.SceneManagement.OpenSceneMode mode) => ForgetRequests();
         EditorApplication.playModeStateChanged += (PlayModeStateChange change) =>
         {
-            if (change == PlayModeStateChange.ExitingEditMode || change == PlayModeStateChange.EnteredPlayMode) previewedSceneEntities.Clear();
+            if (change == PlayModeStateChange.ExitingEditMode || change == PlayModeStateChange.EnteredPlayMode) ForgetRequests();
         };
+    }
+
+    static void ForgetRequests()
+    {
+        previewedSceneEntities.Clear();
+        requestedSceneGuids.Clear();
+        hasInFlightTile = false;
     }
 
     static bool IsPreviewEnabled => EditorPrefs.GetBool(PREVIEW_ENABLED_PREF, true);
@@ -57,36 +73,73 @@ public static class TerrainClosedTilePreview
         World world = World.DefaultGameObjectInjectionWorld;
         if (world == null || !world.IsCreated)
         {
-            previewedSceneEntities.Clear();
+            ForgetRequests();
             return;
         }
         if (world.SequenceNumber != trackedWorldSequenceNumber)
         {
-            previewedSceneEntities.Clear();
+            ForgetRequests();
             trackedWorldSequenceNumber = world.SequenceNumber;
         }
         if (world.GetExistingSystem<SceneSystem>() == SystemHandle.Null) return;
 
         EntityManager entityManager = world.EntityManager;
         wantedSceneGuids.Clear();
-        bool anyPreviewStillStreaming = false;
+        Vector3 cameraPosition = SceneView.lastActiveSceneView != null ? SceneView.lastActiveSceneView.camera.transform.position : Vector3.zero;
+        bool hasNextTile = false;
+        Unity.Entities.Hash128 nextTileGuid = default;
+        float nextTileDistance = float.MaxValue;
         foreach (SubScene subScene in Object.FindObjectsByType<SubScene>(FindObjectsInactive.Exclude))
         {
             if (!subScene.name.StartsWith("Tile_")) continue;
             Unity.Entities.Hash128 sceneGuid = subScene.SceneGUID;
             if (!sceneGuid.IsValid || subScene.EditingScene.isLoaded) continue;
             wantedSceneGuids.Add(sceneGuid);
+            if (requestedSceneGuids.Contains(sceneGuid)) continue;
+            float distance = (subScene.transform.position - cameraPosition).sqrMagnitude;
+            if (distance >= nextTileDistance) continue;
+            nextTileDistance = distance;
+            nextTileGuid = sceneGuid;
+            hasNextTile = true;
+            nextTileName = subScene.name;
+        }
 
-            // Asked again until it is really loaded: right after a reload the scene entity exists but its sections are
-            // not resolved yet, and a request made then never reaches them.
-            if (previewedSceneEntities.TryGetValue(sceneGuid, out Entity trackedEntity)
+        bool anyPreviewStillStreaming = false;
+        if (hasInFlightTile)
+        {
+            bool inFlightLoaded = previewedSceneEntities.TryGetValue(inFlightSceneGuid, out Entity trackedEntity)
                 && entityManager.Exists(trackedEntity)
-                && SceneSystem.IsSceneLoaded(world.Unmanaged, trackedEntity))
-                continue;
+                && SceneSystem.IsSceneLoaded(world.Unmanaged, trackedEntity);
+            if (inFlightLoaded || !wantedSceneGuids.Contains(inFlightSceneGuid))
+            {
+                hasInFlightTile = false;
+            }
+            else if (EditorApplication.timeSinceStartup - inFlightStartTime > IN_FLIGHT_TIMEOUT_SECONDS)
+            {
+                Debug.LogWarning("TerrainClosedTilePreview: " + inFlightTileName + " did not load within "
+                    + IN_FLIGHT_TIMEOUT_SECONDS + " s; moving on to the next closed tile.");
+                hasInFlightTile = false;
+            }
+            else
+            {
+                // Same tile re-asked until loaded: right after a reload the scene entity exists but its sections are
+                // not resolved yet, and a request made then never reaches them.
+                anyPreviewStillStreaming = true;
+                Entity sceneEntity = SceneSystem.LoadSceneAsync(world.Unmanaged, inFlightSceneGuid, new SceneSystem.LoadParameters());
+                if (sceneEntity != Entity.Null) previewedSceneEntities[inFlightSceneGuid] = sceneEntity;
+            }
+        }
 
+        if (!hasInFlightTile && hasNextTile)
+        {
+            hasInFlightTile = true;
+            inFlightSceneGuid = nextTileGuid;
+            inFlightTileName = nextTileName;
+            inFlightStartTime = EditorApplication.timeSinceStartup;
+            requestedSceneGuids.Add(nextTileGuid);
             anyPreviewStillStreaming = true;
-            Entity sceneEntity = SceneSystem.LoadSceneAsync(world.Unmanaged, sceneGuid, new SceneSystem.LoadParameters());
-            if (sceneEntity != Entity.Null) previewedSceneEntities[sceneGuid] = sceneEntity;
+            Entity sceneEntity = SceneSystem.LoadSceneAsync(world.Unmanaged, nextTileGuid, new SceneSystem.LoadParameters());
+            if (sceneEntity != Entity.Null) previewedSceneEntities[nextTileGuid] = sceneEntity;
         }
 
         // A tile opened for edit (or removed) is simply forgotten: live baking and the SubScene own that entity then,
@@ -116,7 +169,7 @@ public static class TerrainClosedTilePreview
                 SceneSystem.UnloadScene(world.Unmanaged, previewed.Value, SceneSystem.UnloadParameters.Default);
             }
         }
-        previewedSceneEntities.Clear();
+        ForgetRequests();
     }
 }
 #endif

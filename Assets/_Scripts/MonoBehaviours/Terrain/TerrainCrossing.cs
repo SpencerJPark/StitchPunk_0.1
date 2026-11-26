@@ -62,17 +62,17 @@ public class TerrainCrossing : MonoBehaviour
         RememberTransform();
     }
 
-    private void OnDisable()
-    {
-        TerrainWaterEvents.RaiseCrossing(this);
-    }
-
     private void OnValidate()
     {
 #if UNITY_EDITOR
+        if (TerrainRebakeGate.SuppressRebakeEvents)
+        {
+            return;
+        }
+
         UnityEditor.EditorApplication.delayCall += () =>
         {
-            if (this != null)
+            if (this != null && !TerrainRebakeGate.SuppressRebakeEvents)
             {
                 TerrainWaterEvents.RaiseCrossing(this);
             }

@@ -101,17 +101,17 @@ public class TerraceRamp : MonoBehaviour
         RememberPose();
     }
 
-    private void OnDisable()
-    {
-        RaiseForCurrentFootprint();
-    }
-
     private void OnValidate()
     {
 #if UNITY_EDITOR
+        if (TerrainRebakeGate.SuppressRebakeEvents)
+        {
+            return;
+        }
+
         UnityEditor.EditorApplication.delayCall += () =>
         {
-            if (this != null)
+            if (this != null && !TerrainRebakeGate.SuppressRebakeEvents)
             {
                 RaiseForCurrentFootprint();
             }

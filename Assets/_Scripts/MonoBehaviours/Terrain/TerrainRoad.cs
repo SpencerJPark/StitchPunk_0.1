@@ -110,15 +110,19 @@ public class TerrainRoad : MonoBehaviour
     private void OnDisable()
     {
         Spline.Changed -= HandleSplineChanged;
-        TerrainRoadEvents.Raise(this);
     }
 
     private void OnValidate()
     {
 #if UNITY_EDITOR
+        if (TerrainRebakeGate.SuppressRebakeEvents)
+        {
+            return;
+        }
+
         UnityEditor.EditorApplication.delayCall += () =>
         {
-            if (this != null)
+            if (this != null && !TerrainRebakeGate.SuppressRebakeEvents)
             {
                 TerrainRoadEvents.Raise(this);
             }
@@ -153,6 +157,11 @@ public class TerrainRoad : MonoBehaviour
 
     private void HandleSplineChanged(Spline changedSpline, int knotIndex, SplineModification modification)
     {
+        if (TerrainRebakeGate.SuppressRebakeEvents)
+        {
+            return;
+        }
+
         SplineContainer container = Container;
         if (container == null)
         {

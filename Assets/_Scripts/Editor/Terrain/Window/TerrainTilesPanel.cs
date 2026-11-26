@@ -524,13 +524,17 @@ public sealed class TerrainTilesPanel : TerrainToolPanel
     {
         if (StateOfCell(cell) != TerrainTileCellState.Empty)
         {
-            OpenTileForEdit(cell);
+            OpenTileForEditFromUserAction(cell);
             return;
         }
         if (!mapElement.IsCreatableCell(cell)) return;
 
         SubScene created = TerrainTileCreator.CreateTileScene(cell, TerrainSplatLayer.Grass);
-        if (created != null) SubSceneEditorUtility.EditScene(created);
+        if (created != null)
+        {
+            SubSceneEditorUtility.EditScene(created);
+            TerrainOpenTilesSessionRestore.RecordUserOpenedTile(created.name);
+        }
         RefreshAll();
     }
 
@@ -544,7 +548,11 @@ public sealed class TerrainTilesPanel : TerrainToolPanel
     {
         if (StateOfCell(cell) == TerrainTileCellState.Empty) return;
         GenericMenu menu = new GenericMenu();
-        menu.AddItem(new GUIContent("Close"), false, () => CloseTile(cell));
+        menu.AddItem(new GUIContent("Close"), false, () =>
+        {
+            TerrainOpenTilesSessionRestore.RecordUserClosedTile("Tile_" + cell.x + "_" + cell.y);
+            CloseTile(cell);
+        });
         menu.AddItem(new GUIContent("Select in Hierarchy"), false, () => SelectTileInHierarchy(cell));
         menu.AddItem(new GUIContent("Delete..."), false, () => DeleteTile(cell));
         menu.ShowAsContext();
@@ -568,6 +576,12 @@ public sealed class TerrainTilesPanel : TerrainToolPanel
         }
         if (!subScene.EditingScene.isLoaded) SubSceneEditorUtility.EditScene(subScene);
         return true;
+    }
+
+    // Builders and bakers call OpenTileForEdit directly and must never be recorded as the user's choice.
+    static void OpenTileForEditFromUserAction(Vector2Int coordinate)
+    {
+        if (OpenTileForEdit(coordinate)) TerrainOpenTilesSessionRestore.RecordUserOpenedTile("Tile_" + coordinate.x + "_" + coordinate.y);
     }
 
     public static void SaveAndCloseTile(Vector2Int coordinate)
@@ -639,7 +653,11 @@ public static class TerrainOpenTilesSessionRestore
         {
             if (change == PlayModeStateChange.EnteredEditMode) BeginRetryWindow();
         };
-        EditorSceneManager.sceneOpened += (Scene openedScene, OpenSceneMode openMode) => BeginRetryWindow();
+        EditorSceneManager.sceneOpened += (Scene openedScene, OpenSceneMode openMode) =>
+        {
+            if (openMode == OpenSceneMode.Single) DropRecordedTilesMissingFromLoadedScenes();
+            BeginRetryWindow();
+        };
     }
 
     // The subscenes are not always loaded yet when the reload finishes, so keep trying for a few seconds.
@@ -656,52 +674,69 @@ public static class TerrainOpenTilesSessionRestore
     }
 
     const string OPEN_TILES_SESSION_KEY = "TerrainEditor.OpenTiles";
-    const double RECORD_POLL_SECONDS = 1.0;
-    static double nextRecordPollTime;
+
+    // Names are the SubScene names ("Tile_x_z"), the same key the old scan recorded.
+    static HashSet<string> ReadRecordedTileNames()
+    {
+        string recordedNames = SessionState.GetString(OPEN_TILES_SESSION_KEY, "");
+        HashSet<string> recordedNameSet = new HashSet<string>();
+        foreach (string recordedName in recordedNames.Split('\n'))
+            if (recordedName.Length > 0) recordedNameSet.Add(recordedName);
+        return recordedNameSet;
+    }
+
+    static void WriteRecordedTileNames(HashSet<string> recordedNameSet)
+    {
+        List<string> sortedNames = new List<string>(recordedNameSet);
+        sortedNames.Sort();
+        SessionState.SetString(OPEN_TILES_SESSION_KEY, string.Join("\n", sortedNames));
+    }
+
+    public static void RecordUserOpenedTile(string tileName)
+    {
+        HashSet<string> recordedNameSet = ReadRecordedTileNames();
+        if (recordedNameSet.Add(tileName)) WriteRecordedTileNames(recordedNameSet);
+    }
+
+    public static void RecordUserClosedTile(string tileName)
+    {
+        HashSet<string> recordedNameSet = ReadRecordedTileNames();
+        if (recordedNameSet.Remove(tileName)) WriteRecordedTileNames(recordedNameSet);
+    }
+
+    // A scene without tile subscenes leaves the record alone, so a detour through another scene keeps the terrain scene's list.
+    static void DropRecordedTilesMissingFromLoadedScenes()
+    {
+        HashSet<string> tileNamesInLoadedScenes = new HashSet<string>();
+        foreach (SubScene subScene in UnityEngine.Object.FindObjectsByType<SubScene>(FindObjectsInactive.Include))
+            if (subScene.name.StartsWith("Tile_")) tileNamesInLoadedScenes.Add(subScene.name);
+        if (tileNamesInLoadedScenes.Count == 0) return;
+        HashSet<string> recordedNameSet = ReadRecordedTileNames();
+        if (recordedNameSet.RemoveWhere((string recordedName) => !tileNamesInLoadedScenes.Contains(recordedName)) > 0)
+            WriteRecordedTileNames(recordedNameSet);
+    }
 
     static void RetryWhileWindowOpen()
     {
         if (EditorApplication.isPlayingOrWillChangePlaymode) return;
-        if (EditorApplication.timeSinceStartup <= retryUntilTime)
-        {
-            ReopenRecordedTilesInLoadedScenes();
-            return;
-        }
-        // Recording is skipped inside the retry window: a reload would otherwise record "none open" before the restore runs.
-        if (EditorApplication.timeSinceStartup < nextRecordPollTime) return;
-        nextRecordPollTime = EditorApplication.timeSinceStartup + RECORD_POLL_SECONDS;
-        RecordOpenTilesInLoadedScenes();
+        if (EditorApplication.timeSinceStartup > retryUntilTime) return;
+        ReopenOneRecordedTileInLoadedScenes();
     }
 
-    // Tiles stay closed by default (a closed tile is drawn by TerrainClosedTilePreview); only tiles the user had open are reopened.
-    static void ReopenRecordedTilesInLoadedScenes()
+    // Tiles stay closed by default (a closed tile is drawn by TerrainClosedTilePreview); only tiles the user had open are reopened, one per update.
+    static void ReopenOneRecordedTileInLoadedScenes()
     {
-        string recordedNames = SessionState.GetString(OPEN_TILES_SESSION_KEY, "");
-        if (recordedNames.Length == 0) return;
-        HashSet<string> recordedNameSet = new HashSet<string>(recordedNames.Split('\n'));
+        HashSet<string> recordedNameSet = ReadRecordedTileNames();
+        if (recordedNameSet.Count == 0) return;
         foreach (SubScene subScene in UnityEngine.Object.FindObjectsByType<SubScene>(FindObjectsInactive.Include))
         {
             if (!recordedNameSet.Contains(subScene.name) || subScene.EditingScene.isLoaded) continue;
             if (subScene.SceneAsset == null || !tileNamesReopenedThisWindow.Add(subScene.name)) continue;
+            System.Diagnostics.Stopwatch reopenStopwatch = TerrainLoadTimer.Start();
             SubSceneEditorUtility.EditScene(subScene);
+            TerrainLoadTimer.Record("reopen tile " + subScene.name, reopenStopwatch.Elapsed.TotalMilliseconds);
+            return;
         }
-    }
-
-    static void RecordOpenTilesInLoadedScenes()
-    {
-        List<string> openTileNames = new List<string>();
-        bool anyTileSubScene = false;
-        foreach (SubScene subScene in UnityEngine.Object.FindObjectsByType<SubScene>(FindObjectsInactive.Include))
-        {
-            if (!subScene.name.StartsWith("Tile_")) continue;
-            anyTileSubScene = true;
-            if (subScene.EditingScene.isLoaded) openTileNames.Add(subScene.name);
-        }
-        // A scene without terrain open must not wipe the record of the terrain scene's open tiles.
-        if (!anyTileSubScene) return;
-        openTileNames.Sort();
-        string joinedNames = string.Join("\n", openTileNames);
-        if (joinedNames != SessionState.GetString(OPEN_TILES_SESSION_KEY, "")) SessionState.SetString(OPEN_TILES_SESSION_KEY, joinedNames);
     }
 }
 #endif

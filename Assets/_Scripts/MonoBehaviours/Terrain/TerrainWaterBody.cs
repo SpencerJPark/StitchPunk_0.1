@@ -86,17 +86,17 @@ public class TerrainWaterBody : MonoBehaviour
 #endif
     }
 
-    private void OnDisable()
-    {
-        TerrainWaterEvents.RaiseBody(this);
-    }
-
     private void OnValidate()
     {
 #if UNITY_EDITOR
+        if (TerrainRebakeGate.SuppressRebakeEvents)
+        {
+            return;
+        }
+
         UnityEditor.EditorApplication.delayCall += () =>
         {
-            if (this != null)
+            if (this != null && !TerrainRebakeGate.SuppressRebakeEvents)
             {
                 TerrainWaterEvents.RaiseBody(this);
             }

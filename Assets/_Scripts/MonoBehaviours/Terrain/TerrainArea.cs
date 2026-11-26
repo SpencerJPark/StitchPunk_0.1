@@ -177,16 +177,20 @@ public class TerrainArea : MonoBehaviour
     private void OnDisable()
     {
         Spline.Changed -= HandleSplineChanged;
-        TerrainFeatureEvents.Raise(this);
     }
 
     private void OnValidate()
     {
         AssignFeatureIdIfEmpty();
 #if UNITY_EDITOR
+        if (TerrainRebakeGate.SuppressRebakeEvents)
+        {
+            return;
+        }
+
         UnityEditor.EditorApplication.delayCall += () =>
         {
-            if (this != null)
+            if (this != null && !TerrainRebakeGate.SuppressRebakeEvents)
             {
                 TerrainFeatureEvents.Raise(this);
             }
@@ -229,6 +233,11 @@ public class TerrainArea : MonoBehaviour
 
     private void HandleSplineChanged(Spline changedSpline, int knotIndex, SplineModification modification)
     {
+        if (TerrainRebakeGate.SuppressRebakeEvents)
+        {
+            return;
+        }
+
         SplineContainer container = Container;
         if (container == null)
         {

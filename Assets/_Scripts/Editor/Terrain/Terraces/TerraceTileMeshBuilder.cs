@@ -112,6 +112,7 @@ public static class TerraceTileMeshBuilder
         private readonly List<Vector4> rampBounds = new List<Vector4>();
         private readonly int[] levels = new int[SamplesPerSide * SamplesPerSide];
         private readonly bool[] cellSubdivided = new bool[CellsPerSide * CellsPerSide];
+        private readonly Dictionary<long, int> groundVertexLookup = new Dictionary<long, int>();
         private readonly List<Vector3> positions = new List<Vector3>();
         private readonly List<Vector3> normals = new List<Vector3>();
         private readonly List<Vector4> uvs = new List<Vector4>();
@@ -652,8 +653,17 @@ public static class TerraceTileMeshBuilder
             return new Vector3(-slopeX, 1f, -slopeZ).normalized;
         }
 
+        // Position, normal and uv are pure functions of (tileMetres, level), so identical keys weld exactly.
         private int AddGroundVertex(Vector2 tileMetres, int level)
         {
+            long weldKey = ((long)Mathf.RoundToInt(tileMetres.x * 10000f) << 40)
+                ^ ((long)Mathf.RoundToInt(tileMetres.y * 10000f) << 16)
+                ^ (long)(level + 32768);
+            if (groundVertexLookup.TryGetValue(weldKey, out int existingIndex))
+            {
+                return existingIndex;
+            }
+            groundVertexLookup.Add(weldKey, positions.Count);
             positions.Add(new Vector3(tileMetres.x - HalfTile, LayerHeight(tileMetres) + level * levelHeight, tileMetres.y - HalfTile));
             normals.Add(GroundNormal(tileMetres));
             uvs.Add(new Vector2(
