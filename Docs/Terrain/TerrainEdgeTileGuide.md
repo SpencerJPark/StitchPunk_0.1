@@ -59,7 +59,8 @@ the rest of the tile is transparent and the lower biome shows through.
 - The packer **replaces the flat fill colour with the real world texture**, and keeps everything that differs from
   it (the ink and details). That is what makes a full cell and an edge cell meet with no visible square. So:
   - keep the fill one flat colour (the set's **fill key**, auto-picked as the median colour of the Full piece);
-  - anything you want kept must be clearly different from that colour (default tolerance 0.12).
+  - anything you want kept must be clearly different from that colour (default tolerance 0.12);
+  - flicks may hang **outside** the silhouette over the lower biome (as in your sample): they stay ink only.
 
 Size: **256 x 256 px per cell = 2 m**, so 128 px per metre. Ink strokes at least **3 px wide**, or they vanish
 when the game shrinks the texture (Switch imports at 128 px).
@@ -191,7 +192,14 @@ Stone. Painted ground is never changed by these rules.
 
 ---
 
-## 9. Reading `edgesSample.png` (your reference)
+## 9. Examples
+
+`Docs/Terrain/EdgeTileExamples/` holds four generated example sets in the 5-piece layout (Grass over Dirt,
+Forest over Grass, Stone over Dirt, Stone over Grass as a pair override), two variants each. They pass every rule
+above; copy one as a starting point. Rendered results: `Assets/_Vault/Tasks/Captures/EdgeTiles_2026-11-25/`.
+Regenerate with `python Tools/terrain_edge_mock/edge_tile_mock.py <capture_dir> <example_dir>`.
+
+## 10. Reading `edgesSample.png` (your reference)
 
 That sheet uses the 47-tile "blob" scheme (each tile looks at 8 neighbours), so its tiles cannot be dropped in
 directly. To reuse it: take its straight edge tile, an outer corner, an inner corner and a full tile, re-cut them
