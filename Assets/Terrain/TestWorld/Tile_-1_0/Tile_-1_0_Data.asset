@@ -74164,6 +74164,8 @@ MonoBehaviour:
   - 0
   - 0
   - 0
+  baseTerraceLevels: 
+  handTerraceLevels: 
   baseMask: {fileID: 2800000, guid: 02d3348e6c7fe1249944d1a8fa1070cb, type: 3}
   paintOverlay: {fileID: 0}
   roadMask: {fileID: 2800000, guid: 8d1be2553ea4d6442a4a5be2590c0139, type: 3}
@@ -74178,8 +74180,8 @@ MonoBehaviour:
     densityMultiplier: 1
   areaMask: {fileID: 2800000, guid: f9cf4d10ea5ae114eba67c1b5fec7e35, type: 3}
   handAuthored: 0
-  revision: 226
-  compositedRevision: 226
+  revision: 230
+  compositedRevision: 230
 --- !u!43 &23125463902244674
 Mesh:
   m_ObjectHideFlags: 0

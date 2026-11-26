@@ -17,7 +17,6 @@ MonoBehaviour:
     outlineLayerMask:
       serializedVersion: 2
       m_Bits: 1920
-    flattenedRenderingLayerMask: 1073741824
     robertsCrossMaterial: {fileID: 2100000, guid: 14a97ad2ce613324f999eb312ce251b4, type: 2}
     normalCaptureShader: {fileID: 4800000, guid: ad2b20eee37990d4eaa5a0839c82812f, type: 3}
     robertsCrossMultiplier: 1

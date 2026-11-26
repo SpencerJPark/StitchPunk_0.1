@@ -23,14 +23,41 @@ Material:
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
+    - _EdgeTex0:
+        m_Texture: {fileID: 2800000, guid: 7ba6a24fd6af1494ca5933bcf5ed8fbc, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _EdgeTex1:
+        m_Texture: {fileID: 2800000, guid: e434937d7495b18488f9b5c41e13e445, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _EdgeTex2:
+        m_Texture: {fileID: 2800000, guid: e7807913a3943cf4da91932e293b69b7, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _EdgeTex3:
+        m_Texture: {fileID: 2800000, guid: 11c02bb4516697f4f8aa38688e3dfe9a, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SplatMap:
+        m_Texture: {fileID: 2800000, guid: 3557cef387aa93f4c80245b3d40935f3, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _SurfaceTex:
         m_Texture: {fileID: 2800000, guid: cf14ec1a21328eb4ebf456a969412c48, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _WallTex:
+        m_Texture: {fileID: 2800000, guid: ad51379fb751ecb409560de7b960db26, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _Cull: 2
+    - _BladeDensity: 24
+    - _Cull: 0
     - _DstBlend: 0
+    - _EdgeAlphaCutoff: 0.5
+    - _EdgeFlipV: 0
     - _FootGrassStartMetres: 0.55
     - _FootShadowMetres: 0.5
     - _FootShadowStrength: 0.45
@@ -54,7 +81,11 @@ Material:
     m_Colors:
     - _AmbientTint: {r: 1, g: 1, b: 1, a: 1}
     - _BottomColor: {r: 0.56, g: 0.51, b: 0.45, a: 1}
+    - _EdgeDepths: {r: 0.55, g: 0.7, b: 0.6, a: 0.5}
+    - _EdgeOverhangs: {r: 0.22, g: 0.3, b: 0.25, a: 0.2}
     - _LipColor: {r: 0.36, g: 0.46, b: 0.24, a: 1}
+    - _SplatBounds: {r: -50, g: -50, b: 100, a: 100}
     - _TopColor: {r: 0.74, g: 0.69, b: 0.6, a: 1}
+    - _WallTileSize: {r: 6, g: 6, b: 0, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

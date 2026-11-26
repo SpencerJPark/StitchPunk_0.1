@@ -1,0 +1,66 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 571debd1ffe39b34aafc4f2fc0d473bf, type: 3}
+  m_Name: NatureAtlas_01
+  m_EditorClassIdentifier: DotsAnimationToolkit.Editor::DotsAnimationToolkit.Editor.CutoutAsset
+  flipbook: {fileID: 2800000, guid: 69e734f0c60388c41bb754323b97bb8b, type: 3}
+  pixelsPerUnit: 100
+  outlinePixels:
+  - {x: 55, y: 0}
+  - {x: 285, y: 0}
+  - {x: 285, y: 19}
+  - {x: 314, y: 21}
+  - {x: 323, y: 36}
+  - {x: 439, y: 47}
+  - {x: 461, y: 69}
+  - {x: 503, y: 85}
+  - {x: 543, y: 86}
+  - {x: 543, y: 117}
+  - {x: 521, y: 117}
+  - {x: 514, y: 131}
+  - {x: 479, y: 149}
+  - {x: 391, y: 167}
+  - {x: 391, y: 179}
+  - {x: 377, y: 188}
+  - {x: 340, y: 190}
+  - {x: 340, y: 212}
+  - {x: 54, y: 212}
+  - {x: 54, y: 194}
+  - {x: 37, y: 169}
+  - {x: 0, y: 168}
+  - {x: 0, y: 34}
+  - {x: 52, y: 21}
+  originPixels: {x: 271.5, y: 0}
+  artPositionWorld: {x: 0, y: 0}
+  innerEdges: []
+  facing: 0
+  normalMode: 0
+  roundness: 0.5
+  fitVertexBudget: 24
+  fitPaddingPixels: 2
+  referenceImage: {fileID: 0}
+  referenceRectWorld:
+    serializedVersion: 2
+    x: -0.5
+    y: 0
+    width: 1
+    height: 1
+  referenceOpacity: 0.6
+  outputMesh: {fileID: 4300000, guid: 4487bab7a0f4ee545a9cc0fb35107384, type: 2}
+  outputPath: Assets/Models/UnitMeshes/NatureAtlas/NatureAtlas_01_Mesh.asset
+  sourceRectPixels:
+    x: 79
+    y: 806
+    width: 543
+    height: 212
+  rotationDegrees: 0
+  sheetFrameCells: []

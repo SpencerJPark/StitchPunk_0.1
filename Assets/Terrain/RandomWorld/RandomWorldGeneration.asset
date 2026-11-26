@@ -1,0 +1,143 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e86d538f42f333e4795aacb96f4c13c7, type: 3}
+  m_Name: RandomWorldGeneration
+  m_EditorClassIdentifier: StitchPunk.Data::TerrainGenerationProfile
+  seed: 424242
+  heightLayers:
+  - frequencyPerMetre: 0.006
+    amplitudeMetres: 7
+    octaves: 3
+    lacunarity: 2
+    gain: 0.45
+  - frequencyPerMetre: 0.02
+    amplitudeMetres: 1.2
+    octaves: 2
+    lacunarity: 2
+    gain: 0.5
+  heightRemap:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.45
+      value: 0.1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  baseHeightMetres: 0
+  flattenBelowMetres: -1000
+  mountainCentreWorld: {x: 0, y: 0}
+  mountainRadiusMetres: 0
+  mountainHeightMetres: 0
+  mountainProfile:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 1
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 1
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  mountains:
+  - startWorld: {x: 75, y: 75}
+    endWorld: {x: 75, y: 75}
+    radiusMetres: 123.973526
+    heightMetres: 166.30618
+  landLiftMetres: 15
+  flatAreas:
+  - centreWorld: {x: 0, y: 0}
+    flatRadiusMetres: 45
+    blendEndRadiusMetres: 110
+    heightMetres: 0
+  biomeNoiseWarpMetres: 11
+  biomeNoiseWarpFrequency: 0.035
+  biomeNoiseRotationDegrees: 27
+  biomeRules:
+  - layer: 1
+    heightRange: {x: -1000, y: 1000}
+    slopeRangeDegrees: {x: 0, y: 90}
+    noiseFrequency: 0.01
+    noiseThreshold: 0
+    weight: 1
+  - layer: 2
+    heightRange: {x: -1000, y: 1000}
+    slopeRangeDegrees: {x: 0, y: 30}
+    noiseFrequency: 0.02
+    noiseThreshold: 0.62
+    weight: 1
+  - layer: 3
+    heightRange: {x: -1000, y: 1000}
+    slopeRangeDegrees: {x: 35, y: 90}
+    noiseFrequency: 0.05
+    noiseThreshold: 0
+    weight: 1
+  terraceBiomeRules:
+  - biome: 1
+    enabled: 1
+    plateauThresholds:
+    - 0.6
+    - 0.78
+    plateauNoiseFrequencyPerMetre: 0.006
+    maxLevel: 2
+    minPlateauAreaSquareMetres: 150
+    cliffOnSlope: 1
+    cliffSlopeDegrees: 12
+    cliffChance: 0.5
+  - biome: 3
+    enabled: 1
+    plateauThresholds:
+    - 0.5
+    plateauNoiseFrequencyPerMetre: 0.01
+    maxLevel: 1
+    minPlateauAreaSquareMetres: 100
+    cliffOnSlope: 1
+    cliffSlopeDegrees: 8
+    cliffChance: 0.8
