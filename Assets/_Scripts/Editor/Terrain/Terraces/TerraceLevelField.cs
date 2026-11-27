@@ -147,7 +147,8 @@ public static class TerraceLevelField
         }
     }
 
-    private static int[] BuildPaddedLevels(
+    // Index (cellZ + marginCells) * (100 + 2 * marginCells) + cellX + marginCells; missing neighbours repeat this tile's edge cell.
+    internal static int[] BuildPaddedLevels(
         TerrainTileData data,
         int marginCells,
         Func<Vector2Int, TerrainTileData> neighbourLookup)

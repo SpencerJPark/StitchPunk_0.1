@@ -22,6 +22,8 @@ public static class TerraceTileMeshBuilder
     public static List<TerraceOutlineChain> LastBuildOutlineChains = new List<TerraceOutlineChain>();
     public static int LastBuildMultiCrossingSubcells;
 
+    // One-line revert to the rounded/blurred field.
+    private const bool UseEdgeTileOutline = true;
     private const int SamplesPerMetre = 4;
     private const int CellsPerSide = 100;
     private const int SamplesPerSide = CellsPerSide * SamplesPerMetre + 1;
@@ -42,8 +44,10 @@ public static class TerraceTileMeshBuilder
         bool anyLevelIsNonZero = false;
         for (int threshold = firstThreshold; threshold <= lastThreshold; threshold++)
         {
-            float[] field = TerraceLevelField.BuildSignedDistance(
-                data, threshold, world.terraceCornerRadiusMetres, neighbourLookup, SamplesPerMetre);
+            float[] field = UseEdgeTileOutline
+                ? TerraceEdgeTileOutline.BuildSignedDistanceFromEdgeTiles(data, threshold, neighbourLookup, SamplesPerMetre)
+                : TerraceLevelField.BuildSignedDistance(
+                    data, threshold, world.terraceCornerRadiusMetres, neighbourLookup, SamplesPerMetre);
             signedDistance[threshold - firstThreshold] = field;
             // Level 0 everywhere means thresholds <= 0 are all inside and thresholds >= 1 all outside.
             if (threshold <= 0 ? AnySampleNegative(field) : AnySampleNonNegative(field))

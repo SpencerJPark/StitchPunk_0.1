@@ -126,7 +126,13 @@ void PaintedTransitionTile_float(Texture2D atlas, SamplerState ss,
     }
     float2 cellIndex = floor(cellCoordinate);
     float2 cellLocal = frac(cellCoordinate);
-    float  variant = step(0.5, frac(sin(dot(cellIndex + variantSeed, float2(12.9898, 78.233))) * 43758.5453));
+    // Integer hash, mirrored in TerrainEdgeTileCases.VariantFor: terrace outlines pick the same variant on the CPU.
+    int2   hashCell = (int2)cellIndex;
+    uint   variantHash = (uint)(hashCell.x * 73856093) ^ (uint)(hashCell.y * 19349663) ^ (uint)((int)variantSeed * 83492791);
+    variantHash ^= variantHash >> 13;
+    variantHash *= 0x5bd1e995u;
+    variantHash ^= variantHash >> 15;
+    float  variant = (float)(variantHash & 1u);
 
     // Gradients from the continuous coordinate: the frac() jump at cell borders would pick the smallest mip in a one-pixel line.
     float2 atlasDdx = ddx(cellCoordinate) / float2(8.0, 4.0);

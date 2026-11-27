@@ -210,9 +210,45 @@ Mock-up findings (2026-11-25, `Tools/terrain_edge_mock/`, captures 08-10):
   plateau top are what make the step readable from the gameplay angle.
 
 Open for the Phase T spike (defaults apply if the owner does not answer):
-- T-Q1 Cliff grid size: 2 m (same as biome edges, corner radius at most 1 m) or 4 m (every other corner, broad
-  2 m rounded corners closer to TX-D2's 2.5 m). Default: 4 m, because the owner asked for broad rounded corners.
+- T-Q1 **Answered 2026-11-27: 2 m, the same grid as biome edges.** Owner: "the top edges and bottom edges need to align
+  with normal tile transition... it should be the same tiling", even if the edge shapes change.
 - T-Q2 Kit pieces hand-modelled or generated from the TX-D11 profile. Default: generated, swappable per piece.
+
+### 8.1 Build plan (2026-11-27, started now; Terraces session is stopped, owner directs this)
+
+Audit of today's pipeline: levels are 1 m cells (`baseTerraceLevels`/`handTerraceLevels`, -3..+3);
+`TerraceLevelField.BuildSignedDistance` upsamples to 4/m, rounds by open/close at `terraceCornerRadiusMetres` and blurs;
+`TerraceTileMeshBuilder` marches 0.25 m subcells, links `TerraceOutlineChain`s, and everything downstream (wall profile
+strips, `TerraceDressingBuilder` lip/foot, nav wall mask via `LastBuildOutlineChains`) follows those chains.
+
+Least invasive path, keeping the whole wall/chain/dressing/nav pipeline and replacing only the contoured field:
+- **PT-D1 Shared integer variant hash.** CPU and GPU must pick the same variant per cell, so the shader's
+  `frac(sin(...))` hash becomes an integer hash in both (`TerrainEdgeTileCases.VariantFor(cellX, cellZ, seed)` in C#,
+  the same in `PaintedTransitionTile_float`):
+  `h = (uint)(cellX * 73856093) ^ (uint)(cellZ * 19349663) ^ (uint)(seed * 83492791); h ^= h >> 13; h *= 0x5bd1e995u;
+  h ^= h >> 15; variant = h & 1`. Seeds: R 0, G 17, B 31, plateau 47.
+- **PT-D2 Plateau outline = edge-tile silhouette.** For each level threshold, corner levels on the 2 m dual grid
+  (corner (i,j) at world `tileMin + 2i, 2j`; corner level = the higher of the majority of the four 1 m cells touching
+  it, ties up; cells outside the tile read the neighbour tile's data when loaded, else the generator, else clamp). The
+  case per 2 m cell picks the atlas cell (same indexing as `PaintedTransitionTile_float`: column c % 8, row c / 8 + 2v,
+  row 0 at the PNG top, cell-local +Z up), and the signed field at each 0.25 m sample = (coverage - 0.5) scaled to
+  metres, no open/close/blur. Marching squares, chains, walls, dressing and nav run unchanged on it.
+- **PT-D3 Silhouette source.** The plateau uses the grass edge atlas (`T_EdgeAtlas_GrassOverDirt`, read on the CPU from
+  the PNG file, not the import, so it needs no Read/Write flag) with seed 47 until a dedicated plateau set exists.
+- **PT-D4 Lip and foot use the tile art.** The ground shader learns the plateau case: a per-tile `_TerraceCornerLevels`
+  texture (R8, corner grid, point sampled) and the vertex's own level in uv0.z. On the top surface it draws the atlas ink
+  (outline + flicks) of the plateau case at the rim; at the foot it draws the lower edge of the same case. The
+  procedural lip blades and the black foot strip (`TerraceDressingBuilder`, `PaintedCliff` modes 1-2) are turned off
+  once PT-D4 reads right.
+
+| Phase | Work | Files |
+|---|---|---|
+| PT1 | PT-D1 hash in the shader + C# helper | `PaintedGroundCore.hlsl`; `Utils/Terrain/TerrainEdgeTileCases.cs` (new) |
+| PT2 | PT-D2/D3 field from the silhouette | `TerraceLevelField.cs`, `TerraceTileMeshBuilder.cs`, new `Terraces/TerraceEdgeTileOutline.cs` |
+| PT3 | PT-D4 lip/foot ink in the ground shader, dressing off | `PaintedGround.shader`, tile assets writer, `TerraceDressingBuilder` |
+
+Acceptance: a plateau rim and a grass/dirt border next to it show the same lobes and crossing points at the same 2 m
+cells (capture from the gameplay angle); no gaps where a wall meets a tile seam; nav wall mask follows the new outline.
 
 ## 9. Open (defaults apply)
 
