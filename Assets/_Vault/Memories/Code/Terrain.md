@@ -104,7 +104,10 @@ tile transitions (grid-snapped marching squares off the same SDF corners). See `
 `Tasks/Plans/TerrainEdgeTiles_System.md` replaces that transition experiment: a 16-case dual-grid tile set on 2 m cells, biome id per
 corner derived by the compositor, per-pair edge sets. Drawing rules + templates: `Docs/Terrain/TerrainEdgeTileGuide.md`.
 
-## Terrace cliff edges (spec `Tasks/Plans/TerraceCliffEdges_System.md`, wave 1 2026-11-27)
+## Natural Cliffs (spec `Tasks/Plans/NaturalCliffs_System.md`, 2026-11-27, not started)
+Replaces the section below from its wave 4 on. The owner rejected the grid-locked look and deleted the derived Rim/Foot atlases. The outline goes back to `TerraceLevelField.BuildSignedDistance`; the case contour and the bevels-in-ground path are deleted in that spec's cleanup wave. The capture and debugging notes below still hold.
+
+## Terrace cliff edges (spec `Tasks/Plans/TerraceCliffEdges_System.md`, wave 1 2026-11-27, SUPERSEDED)
 - Plateau outline = `Utils/Terrain/TerraceCaseContour` (lines + 1 m quarter arcs through the 2 m side midpoints), not the art silhouette. Its value is **clamped to +-1 m on purpose**: that is what makes neighbouring cells (and tile seams) agree on a shared side. Anything that needs a far-field distance (hill banks, HL-D2, up to ~8 m) must compute its own, not unclamp this.
 - `StitchPunk.Editor.asmdef` did not reference `StitchPunk.Utils` before this; it does now.
 - Cliff Rim/Foot atlases come from `export_transition_atlas.py --cliff <Biome|all>`: each pixel samples the source ground piece at `q = p - offset * analyticCaseGradient(p)`. A numerically smoothed gradient warp or eroding the coverage both wreck the lobes (tried, rejected). Foot offset 0.675 m leaves only 0.325 m of lower biome in a cell, so single-corner foot pieces are tiny by geometry.
