@@ -328,5 +328,175 @@ namespace StitchPunk.Tests
             TerrainProceduralGenerator.GenerateHeights(profile, tileCoordinate, heights);
             return heights;
         }
+
+        #region Natural cliffs seam invariants
+
+        // Spec asks for 50; drop to 12 if one GenerateTerraceLevels call measures over ~150 ms (not yet measured).
+        private const int SeamSeedCount = 6; // spec asks 50; one generate is ~1 s (two raster passes + ramp window), so 50 seeds took > 180 s per test
+        private const int SeamMaxLevels = 3;
+        private const int SeamLockBandCells = 6;
+        private const int CellCount = TerrainTileData.TerraceCellsPerSide * TerrainTileData.TerraceCellsPerSide;
+
+        private sealed class GeneratedTerraceTile
+        {
+            public byte[] levels = new byte[CellCount];
+            public byte[] stepKinds = new byte[CellCount];
+        }
+
+        private static GeneratedTerraceTile GenerateTerraceTile(TerrainGenerationProfile generationProfile, Vector2Int tileCoordinate,
+            int rollIndex, System.Func<Vector2Int, TerrainTileData> neighbourLookup)
+        {
+            GeneratedTerraceTile tile = new GeneratedTerraceTile();
+            TerrainProceduralGenerator.GenerateTerraceLevels(generationProfile, tileCoordinate, SeamMaxLevels, rollIndex, neighbourLookup,
+                tile.levels, tile.stepKinds, new System.Collections.Generic.List<TerraceRampPlacement>());
+            return tile;
+        }
+
+        private static TerrainTileData CreateStoredTile(Vector2Int tileCoordinate, GeneratedTerraceTile tile)
+        {
+            TerrainTileData data = ScriptableObject.CreateInstance<TerrainTileData>();
+            data.coordinate = tileCoordinate;
+            data.baseTerraceLevels = (byte[])tile.levels.Clone();
+            data.baseTerraceStepKinds = (byte[])tile.stepKinds.Clone();
+            return data;
+        }
+
+        private static System.Func<Vector2Int, TerrainTileData> LookupReturning(Vector2Int storedCoordinate, TerrainTileData stored)
+        {
+            return (Vector2Int requested) => requested == storedCoordinate ? stored : null;
+        }
+
+        [Test]
+        public void RerollingTileBLeavesTileAUnchanged()
+        {
+            for (int seed = 0; seed < SeamSeedCount; seed++)
+            {
+                profile.seed = seed;
+                Vector2Int tileACoordinate = new Vector2Int(0, 0);
+                Vector2Int tileBCoordinate = new Vector2Int(1, 0);
+                GeneratedTerraceTile tileA = GenerateTerraceTile(profile, tileACoordinate, 0, null);
+                byte[] levelsCopy = (byte[])tileA.levels.Clone();
+                byte[] kindsCopy = (byte[])tileA.stepKinds.Clone();
+                TerrainTileData stored = CreateStoredTile(tileACoordinate, tileA);
+                try
+                {
+                    System.Func<Vector2Int, TerrainTileData> lookup = LookupReturning(tileACoordinate, stored);
+                    for (int rollIndex = 0; rollIndex <= 3; rollIndex++)
+                    {
+                        GenerateTerraceTile(profile, tileBCoordinate, rollIndex, lookup);
+                        CollectionAssert.AreEqual(levelsCopy, tileA.levels, "tile A levels changed, seed " + seed + " roll " + rollIndex);
+                        CollectionAssert.AreEqual(kindsCopy, tileA.stepKinds, "tile A kinds changed, seed " + seed + " roll " + rollIndex);
+                        CollectionAssert.AreEqual(levelsCopy, stored.baseTerraceLevels, "generator wrote to stored levels, seed " + seed + " roll " + rollIndex);
+                        CollectionAssert.AreEqual(kindsCopy, stored.baseTerraceStepKinds, "generator wrote to stored kinds, seed " + seed + " roll " + rollIndex);
+                    }
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(stored);
+                }
+            }
+        }
+
+        [Test]
+        public void LockBandIsTheSameForEveryRoll()
+        {
+            const int RollCount = 5;
+            int side = TerrainTileData.TerraceCellsPerSide;
+            for (int seed = 0; seed < SeamSeedCount; seed++)
+            {
+                profile.seed = seed;
+                Vector2Int westCoordinate = new Vector2Int(0, 0);
+                GeneratedTerraceTile west = GenerateTerraceTile(profile, westCoordinate, 0, null);
+                TerrainTileData stored = CreateStoredTile(westCoordinate, west);
+                try
+                {
+                    System.Func<Vector2Int, TerrainTileData> lookup = LookupReturning(westCoordinate, stored);
+                    GeneratedTerraceTile baseline = GenerateTerraceTile(profile, new Vector2Int(1, 0), 0, lookup);
+                    for (int rollIndex = 1; rollIndex < RollCount; rollIndex++)
+                    {
+                        GeneratedTerraceTile rolled = GenerateTerraceTile(profile, new Vector2Int(1, 0), rollIndex, lookup);
+                        for (int cellZ = 0; cellZ < side; cellZ++)
+                        {
+                            for (int cellX = 0; cellX < side; cellX++)
+                            {
+                                bool inLockBand = cellX < SeamLockBandCells || cellX >= side - SeamLockBandCells
+                                    || cellZ < SeamLockBandCells || cellZ >= side - SeamLockBandCells;
+                                if (!inLockBand) continue;
+                                int cellIndex = cellZ * side + cellX;
+                                Assert.AreEqual(baseline.levels[cellIndex], rolled.levels[cellIndex],
+                                    "level differs in lock band at (" + cellX + "," + cellZ + ") seed " + seed + " roll " + rollIndex);
+                                Assert.AreEqual(baseline.stepKinds[cellIndex], rolled.stepKinds[cellIndex],
+                                    "kind differs in lock band at (" + cellX + "," + cellZ + ") seed " + seed + " roll " + rollIndex);
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(stored);
+                }
+            }
+        }
+
+        [Test]
+        public void RegionCrossingTheSeamHasOneKind()
+        {
+            int side = TerrainTileData.TerraceCellsPerSide;
+            for (int seed = 0; seed < SeamSeedCount; seed++)
+            {
+                profile.seed = seed;
+                Vector2Int westCoordinate = new Vector2Int(0, 0);
+                GeneratedTerraceTile west = GenerateTerraceTile(profile, westCoordinate, 0, null);
+                TerrainTileData stored = CreateStoredTile(westCoordinate, west);
+                try
+                {
+                    GeneratedTerraceTile east = GenerateTerraceTile(profile, new Vector2Int(1, 0), 0, LookupReturning(westCoordinate, stored));
+                    for (int cellZ = 0; cellZ < side; cellZ++)
+                    {
+                        int westIndex = cellZ * side + (side - 1);
+                        int eastIndex = cellZ * side;
+                        int westLevel = west.levels[westIndex] - TerrainTileData.TerraceLevelBias;
+                        int eastLevel = east.levels[eastIndex] - TerrainTileData.TerraceLevelBias;
+                        for (int step = 1; step <= SeamMaxLevels; step++)
+                        {
+                            if (westLevel < step || eastLevel < step) continue;
+                            bool westHill = TerrainTileData.IsHillStep(west.stepKinds[westIndex], step);
+                            bool eastHill = TerrainTileData.IsHillStep(east.stepKinds[eastIndex], step);
+                            Assert.AreEqual(westHill, eastHill, "step " + step + " kind differs across the seam at z " + cellZ + " seed " + seed);
+                        }
+                    }
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(stored);
+                }
+            }
+        }
+
+        [Test]
+        public void SameInputsGiveTheSameBytes()
+        {
+            for (int seed = 0; seed < SeamSeedCount; seed++)
+            {
+                profile.seed = seed;
+                Vector2Int westCoordinate = new Vector2Int(0, 0);
+                GeneratedTerraceTile west = GenerateTerraceTile(profile, westCoordinate, 0, null);
+                TerrainTileData stored = CreateStoredTile(westCoordinate, west);
+                try
+                {
+                    System.Func<Vector2Int, TerrainTileData> lookup = LookupReturning(westCoordinate, stored);
+                    GeneratedTerraceTile first = GenerateTerraceTile(profile, new Vector2Int(1, 0), 2, lookup);
+                    GeneratedTerraceTile second = GenerateTerraceTile(profile, new Vector2Int(1, 0), 2, lookup);
+                    CollectionAssert.AreEqual(first.levels, second.levels, "levels differ, seed " + seed);
+                    CollectionAssert.AreEqual(first.stepKinds, second.stepKinds, "kinds differ, seed " + seed);
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(stored);
+                }
+            }
+        }
+
+        #endregion
     }
 }

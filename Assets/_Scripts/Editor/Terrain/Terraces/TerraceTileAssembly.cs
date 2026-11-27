@@ -15,7 +15,7 @@ public static class TerraceTileAssembly
     public const string RampMeshNamePrefix = "TerraceRampMesh_";
     public const string MaterialFolder = "Assets/PaintedGround/Materials/Terraces";
 
-    const float DressingFringeSizeMetres = 0.8f;
+    const string CliffRibbonShaderName = "Painted/CliffEdgeRibbon";
     const float RampOverlapMarginMetres = 1f;
     const string CliffShaderName = "Painted/Cliff";
     const string WallTexturePath = "Assets/PaintedGround/Textures/Layers/T_Cliff.png";
@@ -297,8 +297,19 @@ public static class TerraceTileAssembly
     {
         Transform existingChild = tile.transform.Find(DressingChildName);
         Mesh dressingMesh = null;
-        if (groundMaterial != null && chains != null && chains.Count > 0)
-            dressingMesh = TerraceDressingBuilder.BuildLipAndFootMesh(chains, DressingFringeSizeMetres);
+        Material lipMaterial = null;
+        Material footMaterial = null;
+        if (chains != null && chains.Count > 0 && tile.tileData != null)
+        {
+            lipMaterial = GetOrCreateRibbonMaterial("M_CliffRibbonLip.mat", 0f);
+            footMaterial = GetOrCreateRibbonMaterial("M_CliffRibbonFoot.mat", 1f);
+            if (lipMaterial != null && footMaterial != null)
+            {
+                Vector2 tileMin = tile.tileData.WorldMinCorner();
+                Func<Vector2, int> edgeSetIndexAtWorldXZ = BuildEdgeSetSampler(tile, tileMin);
+                dressingMesh = TerraceDressingBuilder.BuildLipAndFootMesh(chains, edgeSetIndexAtWorldXZ, tileMin);
+            }
+        }
 
         if (dressingMesh == null)
         {
@@ -317,8 +328,73 @@ public static class TerraceTileAssembly
             UnityEngine.Object.DestroyImmediate(colliders[colliderIndex]);
 
         filter.sharedMesh = ResolveMeshForChild(tile, filter.sharedMesh, dressingMesh, DressingMeshName, persist);
-        meshRenderer.sharedMaterials = new Material[] { groundMaterial, groundMaterial };
+        meshRenderer.sharedMaterials = new Material[] { lipMaterial, footMaterial };
         meshRenderer.shadowCastingMode = ShadowCastingMode.Off;
+    }
+
+    static Material GetOrCreateRibbonMaterial(string fileName, float ribbonSide)
+    {
+        string assetPath = MaterialFolder + "/" + fileName;
+        Material existing = AssetDatabase.LoadAssetAtPath<Material>(assetPath);
+        if (existing != null)
+            return existing;
+
+        Shader shader = Shader.Find(CliffRibbonShaderName);
+        if (shader == null)
+        {
+            Debug.LogError("TerraceTileAssembly: shader '" + CliffRibbonShaderName + "' not found; cliff ribbon materials were not created.");
+            return null;
+        }
+
+        EnsureMaterialFolderExists();
+        Material material = new Material(shader);
+        material.name = System.IO.Path.GetFileNameWithoutExtension(fileName);
+        material.SetFloat("_RibbonSide", ribbonSide);
+        AssetDatabase.CreateAsset(material, assetPath);
+        return material;
+    }
+
+    // Set per biome: Grass 0 (GrassOverDirt), Forest 1 (ForestOverGrass), Stone and Dirt 2 (StoneOverDirt); the tile's composite mask decides the biome.
+    static Func<Vector2, int> BuildEdgeSetSampler(TerrainTile tile, Vector2 tileMin)
+    {
+        TerrainTileData tileData = tile.tileData;
+        string baseMaskPath = tileData.baseMask != null ? AssetDatabase.GetAssetPath(tileData.baseMask) : null;
+        if (string.IsNullOrEmpty(baseMaskPath))
+            baseMaskPath = TerrainTileAssets.MaskPath(tile.tileCoordinate);
+        if (string.IsNullOrEmpty(baseMaskPath) || !System.IO.File.Exists(baseMaskPath))
+            return null;
+
+        int resolution;
+        Color32[] baseMask = TerrainSplatCodec.ReadPng(baseMaskPath, out resolution);
+        Color32[] areaMask = TerrainCompositor.ReadAreaMask(tileData, resolution);
+        Color32[] areaLayerColours = TerrainCompositor.AreaLayerColoursFor(tileData);
+        Color32[] paintOverlay = ReadOverlayIfSameResolution(TerrainTileAssets.PaintOverlayPath(tile.tileCoordinate), resolution);
+        Color32[] surfaceOverlay = ReadOverlayIfSameResolution(TerrainTileAssets.SurfaceOverlayPath(tile.tileCoordinate), resolution);
+        Color32[] roadMask = ReadOverlayIfSameResolution(TerrainTileAssets.RoadMaskPath(tile.tileCoordinate), resolution);
+        Color32[] composite = new Color32[resolution * resolution];
+        TerrainCompositor.CompositeTexels(baseMask, areaMask, areaLayerColours, paintOverlay, surfaceOverlay, roadMask,
+            resolution, new RectInt(0, 0, resolution, resolution), composite);
+
+        return (Vector2 worldXZ) =>
+        {
+            int texelX = Mathf.Clamp(Mathf.FloorToInt((worldXZ.x - tileMin.x) / TerrainTileData.TileSizeMetres * resolution), 0, resolution - 1);
+            int texelZ = Mathf.Clamp(Mathf.FloorToInt((worldXZ.y - tileMin.y) / TerrainTileData.TileSizeMetres * resolution), 0, resolution - 1);
+            Color32 texel = composite[texelZ * resolution + texelX];
+            if (texel.r >= texel.g && texel.r >= texel.b && texel.r > 127)
+                return 0;
+            if (texel.g >= texel.b && texel.g > 127)
+                return 1;
+            return 2;
+        };
+    }
+
+    static Color32[] ReadOverlayIfSameResolution(string assetPath, int expectedResolution)
+    {
+        if (!System.IO.File.Exists(assetPath))
+            return null;
+        int resolution;
+        Color32[] pixels = TerrainSplatCodec.ReadPng(assetPath, out resolution);
+        return resolution == expectedResolution ? pixels : null;
     }
 
     static void ApplyRampChild(TerrainTile tile, int rampIndex, TerraceRampFootprint footprint, Material groundMaterial, Material wallMaterial, float topRoundMetres, float footRoundMetres, bool persist)

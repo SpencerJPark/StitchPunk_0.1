@@ -1,5 +1,5 @@
 ---
-status: BUILDING 2026-11-27, waves 0-1 done, wave 2 next. Supersedes TerraceCliffEdges_System.md from wave 4 on (its waves 1-3 are partly undone here, see section 1 and wave 0).
+status: BUILDING 2026-11-27, waves 0-2 done, wave 3 next (plus N3c, M4 fix). Supersedes TerraceCliffEdges_System.md from wave 4 on (its waves 1-3 are partly undone here, see section 1 and wave 0).
 parent: Tasks/Plans/Terraces_System.md (levels, walls, ramps), Tasks/Plans/TerrainEdgeTiles_System.md (ground biome edge tiles, unchanged)
 references: Tasks/References/Edges1.png (tall cliff, full profile), Edges2.png (low ledge that fades in and out, left side; short cliff, right), Edges3.png (soft low edge, apron under the lip)
 good earlier capture: Tasks/Captures/Terraces_2026-11-21/r4_06_gameplay_camera.png (rounded freeform outline, striated wall: the starting point)
@@ -387,3 +387,16 @@ Guards measured on a capture by a small script, not by eye:
   borders; tile styles read mostly in the centre 40 m. L1: 8 straight pieces x 3 atlases join with seam score 0.000 and
   bend on r8 curves without tearing; the 2 m lobe rhythm is regular -> L2 adds a hashed mirror flip per segment.
   Sheets: `Captures/NaturalCliffs_2026-11-27/plateau_plan_sheet_seed424242.png`, `L1_edge_strip_mock.png`. ⏸ posted, continued.
+- 2026-11-27 Wave 2 done. N3a raster NC-D8 overload (W pass + R pass, lock band and stored cells fixed, W-labelled
+  lock-band kinds, level-0 channel cut for a region with two fixed kinds), N3b generator calls it per tile with a biome
+  maxLevel cap, slope cliffs kept, ramp window from stored neighbours, cull protected 6 m from the border; profile
+  `plateauStyles`; N3t I1/I2/D1 fixtures at 6 seeds, not 50 (one generate is ~1 s: two raster passes + ramp window;
+  50 seeds ran > 180 s per test). L2 `PaintedCliffEdgeRibbon.shader`, L3 lip/foot ribbons with biome blend, materials
+  `M_CliffRibbonLip/Foot`. 3 x 3 regenerated (603 s, 67 s/tile: far over the G2 2 s budget, wave 4 timings). Sheets
+  `sheet_02_wave2.png`, `sheet_02_steps.png`: outlines are freeform and organic, ribbons draw (18 renderers, atlases bound);
+  the wall still reads as a smooth tan extrusion (L4, wave 3); the cream lip band reads as a stripe, not ragged art
+  (wave 5 look round). Data: tall cliffs are rare (hill edges ~85 % of 0->1 edges; world style lowShare .85 owns the
+  borders) and the 3 x 3 has no level 2: the raster makes it (tiles 1_0, -1_1) but it falls in Stone, maxLevel 1, by
+  rule; left as data. Plan sheet re-measured: M4 = 257 FAIL (roll 2 = 187): channel cuts and the W/R splice run after
+  the re-clean, and the 8 m stacked set-back is not re-applied after it -> **N3c** in wave 3 (raster only). M2 15.3 on
+  roll 2 against a uniform 14 m limit in code; the per-style 20 m Escarpment limit goes in with N3c. ⏸ posted, continued.

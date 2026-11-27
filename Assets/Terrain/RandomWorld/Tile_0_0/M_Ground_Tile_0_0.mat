@@ -62,6 +62,10 @@ Material:
         m_Texture: {fileID: 2800000, guid: 5b07764d1462bab4e9c5f4928e9fec04, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _TerraceCornerLevels:
+        m_Texture: {fileID: 2800000, guid: 819dba038556c714a94432bd199a6bd8, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
     - _BlendNoiseAmount: 0.039
@@ -91,6 +95,7 @@ Material:
     - _MacroLight: {r: 0.58, g: 0.54999995, b: 0.47999996, a: 1}
     - _RimColor: {r: 0.95, g: 0.92, b: 0.8, a: 0}
     - _SplatBounds: {r: -50, g: -50, b: 100, a: 100}
+    - _TerraceCornerOrigin: {r: -50, g: -50, b: 2, a: 51}
     - _TileSizes: {r: 8, g: 8, b: 8, a: 8}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

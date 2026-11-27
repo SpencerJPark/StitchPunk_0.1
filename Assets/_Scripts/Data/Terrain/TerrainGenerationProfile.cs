@@ -28,9 +28,8 @@ public struct TerraceBiomeRule
 {
     public TerrainSplatLayer biome;
     public bool enabled;
-    [Tooltip("Plateau noise in 0..1 at or above entry k gives level k + 1.")]
-    public float[] plateauThresholds;
-    public float plateauNoiseFrequencyPerMetre;
+    [Tooltip("Unused since Natural Cliffs (plateauStyles); deleted in the cleanup wave.")] public float[] plateauThresholds;
+    [Tooltip("Unused since Natural Cliffs (plateauStyles); deleted in the cleanup wave.")] public float plateauNoiseFrequencyPerMetre;
     [Range(0, 3)] public int maxLevel;
     [Tooltip("Plateaus smaller than this that do not touch the generation window border are removed.")]
     public float minPlateauAreaSquareMetres;
@@ -142,6 +141,9 @@ public class TerrainGenerationProfile : ScriptableObject
     };
 
     [Header("Terraces")]
+    [Tooltip("NC-D3 plateau recipes; a tile picks one by weighted hash of (seed, tile, roll). Index 0 is the world style used in every tile's border band.")]
+    public List<TerracePlateauStyle> plateauStyles = TerracePlateauStyleDefaults.CreateDefaultStyles();
+
     [Tooltip("A biome with no enabled rule gets no terraces.")]
     public List<TerraceBiomeRule> terraceBiomeRules = new List<TerraceBiomeRule>
     {

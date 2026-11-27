@@ -89,8 +89,13 @@ public static class TerrainGenerateTool
         TerrainWorldProfile worldProfile = TerrainWorldProfile.FindOrCreateInProject();
         int maxLevels = worldProfile != null ? worldProfile.maxTerraceLevels : 3;
         byte[] levels = new byte[TerrainTileData.TerraceCellsPerSide * TerrainTileData.TerraceCellsPerSide];
-        TerrainProceduralGenerator.GenerateTerraceLevels(profile, coordinate, maxLevels, levels, generatedRamps);
+        byte[] stepKinds = new byte[levels.Length];
+        const int rollIndexUntilN4 = 0;
+        System.Func<Vector2Int, TerrainTileData> neighbourLookup = (Vector2Int neighbourCoordinate) =>
+            AssetDatabase.LoadAssetAtPath<TerrainTileData>(TerrainTileAssets.TileDataPath(neighbourCoordinate));
+        TerrainProceduralGenerator.GenerateTerraceLevels(profile, coordinate, maxLevels, rollIndexUntilN4, neighbourLookup, levels, stepKinds, generatedRamps);
         tileData.baseTerraceLevels = levels;
+        tileData.baseTerraceStepKinds = stepKinds;
     }
 
     // Only objects named GeneratedTerraceRamp are replaced; hand-placed ramps keep their own names.
