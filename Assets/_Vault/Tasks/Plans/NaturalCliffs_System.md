@@ -1,5 +1,5 @@
 ---
-status: BUILDING 2026-11-27, wave 0 done, wave 1 next. Supersedes TerraceCliffEdges_System.md from wave 4 on (its waves 1-3 are partly undone here, see section 1 and wave 0).
+status: BUILDING 2026-11-27, waves 0-1 done, wave 2 next. Supersedes TerraceCliffEdges_System.md from wave 4 on (its waves 1-3 are partly undone here, see section 1 and wave 0).
 parent: Tasks/Plans/Terraces_System.md (levels, walls, ramps), Tasks/Plans/TerrainEdgeTiles_System.md (ground biome edge tiles, unchanged)
 references: Tasks/References/Edges1.png (tall cliff, full profile), Edges2.png (low ledge that fades in and out, left side; short cliff, right), Edges3.png (soft low edge, apron under the lip)
 good earlier capture: Tasks/Captures/Terraces_2026-11-21/r4_06_gameplay_camera.png (rounded freeform outline, striated wall: the starting point)
@@ -374,3 +374,16 @@ Guards measured on a capture by a small script, not by eye:
   Sheet `Captures/NaturalCliffs_2026-11-27/sheet_00_baseline.png`: the 11-21 look is back on tile 0_0; a stale ramp
   placement from the old data remains until the wave-2 regenerate. Tile rebuild = 14.4 s (G2 budget is 2 s: measure
   stages in wave 4). Section 6 check: Utils references Data, so `TerracePlateauStyle` goes to `Data/Terrain/`.
+- 2026-11-27 Wave 1 done (orchestrator wrote signature stubs first so all six workers gated in parallel). N1
+  `TerracePlateauField` (Utils) + `TerracePlateauStyle` / `TerracePlateauStyleDefaults` (Data), N1t 6 tests, N2a
+  `TerracePlateauRaster` (Editor/Terraces: window 132 cells, threshold -> 8 m stacked set-back for ALL styles ->
+  open/close LAST -> cull -> kinds), N2m `TerracePlateauMetrics`, N2 `TerracePlateauPlanSheet` (rasterizes 5 x 5,
+  measures the inner 3 x 3: the open outer edge faked 20 m straight runs), L1 `edge_strip_mock.py`. Orchestrator calls:
+  world style (index 0) = LedgeField; every roll including 0 blends (a fresh world is already varied); coves and wobble
+  sample at metre scale on a stretched grain. Tuned defaults, seed 424242: M1 0.18 ok, M3 0.31..0.90 ok, M6 0.55 ok;
+  M2 17.2 m on Escarpment only (others <= 10 m) -> **M2 limit for Escarpment is 20 m** (it is a cliff line, Edges1);
+  M5 per-3x3 rule passes 5 of 6 rolls -> accepted (distribution, not a defect); M4 = 4 cells, all at seams -> must reach
+  0 once N3's neighbour-margin rule lands. Note: the 30 m blend band covers 84 % of a tile, so the world style dominates
+  borders; tile styles read mostly in the centre 40 m. L1: 8 straight pieces x 3 atlases join with seam score 0.000 and
+  bend on r8 curves without tearing; the 2 m lobe rhythm is regular -> L2 adds a hashed mirror flip per segment.
+  Sheets: `Captures/NaturalCliffs_2026-11-27/plateau_plan_sheet_seed424242.png`, `L1_edge_strip_mock.png`. ⏸ posted, continued.
