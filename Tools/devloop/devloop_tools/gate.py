@@ -118,10 +118,15 @@ def _compile_one_assembly(
 def gate(project_root: str, package_or_assembly: str) -> GateReport:
     assembly_targets: list[packages.AssemblyTarget] = packages.targets_for(package_or_assembly)
 
-    asmdef_paths: list[str] = [target.asmdef_path for target in assembly_targets]
-    staleness_verdict: rsp_harvest.StalenessVerdict = rsp_harvest.is_stale(
-        project_root, assembly_targets[0].assembly_name, asmdef_paths
-    )
+    # Each asmdef against its own rsp: Unity rewrites an rsp only when that assembly recompiles, so comparing
+    # every asmdef with the first target's rsp reported stale whenever a sibling asmdef was edited.
+    staleness_verdict: rsp_harvest.StalenessVerdict = rsp_harvest.StalenessVerdict(is_stale=False, reason="")
+    for assembly_target in assembly_targets:
+        staleness_verdict = rsp_harvest.is_stale(
+            project_root, assembly_target.assembly_name, [assembly_target.asmdef_path]
+        )
+        if staleness_verdict.is_stale:
+            break
     if staleness_verdict.is_stale:
         return GateReport(
             per_assembly=[],
