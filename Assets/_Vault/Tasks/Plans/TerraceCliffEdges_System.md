@@ -176,7 +176,7 @@ are one-line fixes only. Subagents never touch Unity MCP.
 | 1 | **C0** mock (`edge_tile_mock.py`) [parallel-safe] - **C1** contour (`TerraceCaseContour.cs` new, `TerraceEdgeTileOutline.cs`) + its EditMode fixture as a second worker [parallel-safe] - **C3a** rim/foot derivation (`export_transition_atlas.py`) [parallel-safe] | Run the exporter, look at the 8 PNGs and the C0 mock captures, post the mock captures to the owner, and **continue without waiting** (standing rule: unseen checkpoints pass). Run the C1 fixture. |
 | 2 | **C2** bevels into the ground mesh (`TerraceTileMeshBuilder.cs`, `TerrainWorldProfile.cs`) - **C3b** pack menu (new Editor file) + bridge fields (`TerrainLightingBridge.cs`) [parallel-safe with C2] - **H3** along-cliff ramp (`TerraceRamp.cs`, `TerraceRampMeshBuilder.cs`) [parallel-safe] | Run Pack, rebake tile 0_0, capture plain rock bevels + an along-cliff ramp each way |
 | 3 | **C4** shader (`PaintedGround.shader`, `PaintedGroundCore.hlsl`) - **H1** step kinds + heights (`TerrainTileData.cs`, the terrace height path) [parallel-safe] | Compile the shader variant (`ShaderUtil`), captures A1-A6 |
-| 4 | **C5** ramp corners + seams (`TerraceEdgeTileOutline.cs`) - **H2** hill banks (`TerraceTileMeshBuilder.cs`; runs after C2 is committed) | Captures A7, H-A1..A3; nav bake check H-A6 |
+| 4 | **C5** ramp corners + seams (`TerraceEdgeTileOutline.cs`) - **H2** hill banks (`TerraceTileMeshBuilder.cs`; runs after C2 is committed) - **H6** caravan slope limit [parallel-safe] | Captures A7, H-A1..A3 (hills at 1.0 / 1.5 / 2.0 m side by side for HL-Q1); nav bake check H-A6; Play mode: drive the caravan at a hill, a Straight ramp and an AlongCliff ramp (H-A7) |
 | 5 | **H4** multi-ramp generation (`TerrainGenerationProfile.cs`, the reachability pass) - **H5** brush kind toggle + ramp drag (terrace panel + ramp tool; UI: brief names `Docs/AnimationToolkit/EditorStyleGuide.md` R01-R22 and needs before/after captures at 177 pt) | Generate a 3 x 3, capture H-A4, H-A5; judge the panel capture |
 | 6 | **C6a** delete the dressing lip/foot + fillet grass (`TerraceDressingBuilder.cs`, `PaintedCliff.shader`) - **C6b** guide section (`Docs/Terrain/TerrainEdgeTileGuide.md`) [parallel-safe] | Swap test A8, a full acceptance capture set, retire the spec to `Tasks/Verification/` with a `verify-terrace-cliff-edges.md` play checklist |
 
@@ -253,8 +253,9 @@ and out.
 - **HL-D2 A hill edge is a bank in the ground mesh, not a cut.** Hill steps get no wall, no face, no marching-squares
   cut and no nav wall mask. Each vertex adds `hillStepHeight * smoothstep(0, 1, (sd + hillBankMetres) / hillBankMetres)`.
   Here `sd` is the CE-D1 case-contour signed distance for that step, so the bank starts at the contour and runs
-  **outward** `hillBankMetres` (default 7) with rounded top and foot. Over 7 m, 1.5 m peaks near 18 degrees, under
-  the 25-degree `HeavySlopeDegrees`, so units and the caravan drive it on normal slope rules. Bank cells subdivide to
+  **outward** with rounded top and foot. The bank width is **derived from the caravan limit** (HL-D9):
+  `hillBankMetres = 1.5 * hillStepHeight / tan(CaravanMaxSlopeDegrees)`, because smoothstep peaks at 1.5x the mean
+  slope. A 1.5 m hill gets an 8.4 m bank at 15 degrees, so every hill is caravan-drivable by construction. Bank cells subdivide to
   0.5 m. Stacked hills add their banks. If two banks overlap past 25 degrees, the builder warns and names the cell.
 - **HL-D3 Hill banks are ground, not rock.** The top biome continues down the bank under normal lighting. No Rim or
   Foot set and no cliff rock. Biome edge tiles run over the bank like flat ground.
@@ -270,17 +271,27 @@ and out.
     notches into the plateau; corners in the notch follow CE-D8.
   - **Placement:** v1 needs a straight-ish stretch of outline (chord deviation <= 1 m) of length run + 4 m. Curved
     along-cliff ramps are v2.
-  - **Size:** run defaults to 12 m for a 3 m step (about 14 degrees, caravan-friendly), and width to 6 m.
+  - **Size and who can use it** (HL-D9):
+    - Straight ramps are caravan ramps: run 12 m for a 3 m step (about 14 degrees), width 6 m.
+    - AlongCliff ramps are foot-only by default: run 9 m (about 18 degrees), width 4 m. A designer can make one
+      caravan-grade by lengthening its run until the slope is at or under the limit.
 - **HL-D6 Ramp count from size.** The TX-D14 reachability pass places
   `clamp(round(outlinePerimeterMetres / rampSpacingMetres), 1, maxRampsPerRegion)` ramps per cliff region
   (`rampSpacingMetres` 90, `maxRampsPerRegion` 3, both on `TerraceBiomeRule`). It spreads them by greedy
   farthest-point along the outline, so they land on different sides. It picks each kind by the rule's
   `straightRampWeight` / `alongCliffRampWeight` and the side by open lower ground (no water, no other cliff).
-  Hand-placed ramps count toward the total. A region with a Hill edge to its surroundings is already reachable, so
-  it needs no ramp.
+  Hand-placed ramps count toward the total. **At least one ramp per cliff region is caravan-grade** (a Straight
+  ramp at or under `CaravanMaxSlopeDegrees`). If no stretch fits one, the region is culled to a Hill step instead.
+  A region with a Hill edge to its surroundings is already reachable, so it needs no ramp.
 - **HL-D7 Generation per biome.** `TerraceBiomeRule` gains `[Range(0,1)] hillChance` (chance a generated step is a
   Hill), plus the ramp fields above. Grassland leans to hills and stone to cliffs; the defaults go in the spec log
   once played.
+- **HL-D9 Caravan slope limit** (owner 2026-11-27: "caravan can only go up not so steep ones"). Today nothing in
+  `CaravanDriveSystem` limits slope; only the bumper wall cast stops it. Add `CaravanMaxSlopeDegrees` (default 15,
+  one constant beside the caravan drive tuning). The caravan refuses to drive forward onto ground whose slope along
+  its heading exceeds the limit: it stops as at a wall, with no slide. Units on foot keep the 25-degree
+  `HeavySlopeDegrees` rule. Ramps get a derived `isCaravanGrade` (`atan(rise / run) <= CaravanMaxSlopeDegrees`),
+  and caravan pathing (if a route planner reads nav) treats a non-caravan-grade ramp as blocked.
 - **HL-D8 Tools.** The Plateau and Cliff brushes get a kind toggle, Cliff or Hill (icon buttons, still 177 pt wide).
   Ramp placement:
   - drag across an edge for Straight (as today);
@@ -294,28 +305,30 @@ and out.
 | H3 along-cliff ramp | HL-D5 mesh + footprint + notch | `TerraceRamp.cs`, `TerraceRampMeshBuilder.cs` |
 | H4 multi-ramp generation | HL-D6/D7 | `TerrainGenerationProfile.cs`, the reachability pass |
 | H5 tools | HL-D8 | terrace brush panel + ramp tool |
+| H6 caravan slope limit | HL-D9 | `CaravanDriveSystem.cs` + the caravan tuning file (one worker; Burst rules apply) |
 
 H1 comes after C1, because it uses the case contour. H3 is parallel-safe with C2-C4. H4 needs H3.
 
 Acceptance:
 - H-A1 A 1.5 m hill reads as a soft rounded bank with no rock, and the caravan drives up it anywhere.
+- H-A7 The caravan stops at the foot of a foot-only AlongCliff ramp and at any slope over 15 degrees, and climbs every Straight ramp.
 - H-A2 A hill on a hill, and a cliff on a hill top, both build with no gaps and no spikes.
 - H-A3 An outline that changes from cliff to hill tapers cleanly.
 - H-A4 An along-cliff ramp rises each way, its outer side wall carries the rim art, and units and the caravan use it.
 - H-A5 A generated plateau with a perimeter over 200 m gets 2-3 ramps on different sides; a small one gets 1.
 - H-A6 The nav bake shows hill banks as normal slope, not wall.
 
-## 9. Open questions (all answered 2026-11-27: defaults accepted)
+## 9. Open questions (answered 2026-11-27)
 
 - CE-Q1 Bevel widths: default 0.45 m top and foot.
 - CE-Q2 Rock showing in the bays between rim lobes on the flat top: default yes (it reads as the lip).
 - CE-Q3 **Answered 2026-11-27: no drapes for now.** Turf hanging down the face is out of scope; do not build it.
 - CE-Q4 Derived sets first, drawn sets later: default yes.
-- HL-Q1 Hill step height and bank width: default 1.5 m over 7 m.
-- HL-Q2 Can the caravan climb an along-cliff ramp as easily as a straight one? Default yes, with the same 6 m width.
+- HL-Q1 **Owner unsure (2026-11-27).** Start at a 1.5 m step. The bank width is derived, not chosen (HL-D2). Both are profile fields; the wave 4 capture shows 1.0 / 1.5 / 2.0 m side by side so the owner can pick by eye.
+- HL-Q2 **Answered 2026-11-27: no.** The caravan only climbs gentle slopes. See HL-D9.
 
 ## 10. Log (one line per wave, newest last)
 
-- 2026-11-27 Owner added hills, ramp kinds and multiple ramps (section 8); drapes asked for then removed; all open questions take their defaults; observer protocol added (section 4).
+- 2026-11-27 Owner added hills, ramp kinds and multiple ramps (section 8); drapes asked for then removed; hill height unsure (HL-Q1 compares by capture); caravan only climbs gentle slopes (HL-D9); observer protocol added (section 4).
 - 2026-11-27 Spec written after the PT3 session stalled. Diagnosis in section 1. Uncommitted work from that session
   (edge atlas PNGs staged, RandomWorld tiles modified) was left as is.
