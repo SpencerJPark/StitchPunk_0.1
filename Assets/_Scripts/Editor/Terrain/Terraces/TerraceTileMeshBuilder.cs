@@ -22,12 +22,14 @@ public static class TerraceTileMeshBuilder
     public static List<TerraceOutlineChain> LastBuildOutlineChains = new List<TerraceOutlineChain>();
     public static int LastBuildMultiCrossingSubcells;
 
-    // One-line revert to the rounded/blurred field (CE-D1: the case-arc contour is the default).
-    private const bool UseCaseContourOutline = true;
+    // NC-D1: the rounded/blurred field is the outline again; the case-arc contour is deleted in NC-D18.
+    private const bool UseCaseContourOutline = false;
     private const int SamplesPerMetre = 4;
     private const int CellsPerSide = 100;
     private const int SamplesPerSide = CellsPerSide * SamplesPerMetre + 1;
     private const float HalfTile = 50f;
+    // Must stay below TerraceLevelField.SignedDistanceClampMetres (4 m) or the cap never bites.
+    private const float MinimumLedgeBetweenStackedWallsMetres = 3f;
     private const float SubcellMetres = 1f / SamplesPerMetre;
 
     public static Mesh BuildTerracedTileMesh(
@@ -56,6 +58,11 @@ public static class TerraceTileMeshBuilder
             }
         }
 
+        if (!UseCaseContourOutline)
+        {
+            NestStackedLevelFieldsWithLedge(signedDistance, firstThreshold);
+        }
+
         LastBuildOutlineChains = new List<TerraceOutlineChain>();
         LastBuildMultiCrossingSubcells = 0;
         if (!anyLevelIsNonZero)
@@ -66,6 +73,30 @@ public static class TerraceTileMeshBuilder
         TileBuild build = new TileBuild(data, world.terraceLevelHeightMetres, verticalOffsetMetres, signedDistance, firstThreshold, ramps,
             world.terraceTopRoundMetres, world.terraceFootRoundMetres, world.terraceUseTileCliffEdges);
         return build.BuildMesh();
+    }
+
+    // Independently rounded fields can cross on a double step, putting two levels in one sub-cell; forcing a ledge keeps every sub-cell to one wall.
+    private static void NestStackedLevelFieldsWithLedge(float[][] signedDistance, int firstThreshold)
+    {
+        int levelZeroFieldIndex = 0 - firstThreshold;
+        for (int fieldIndex = levelZeroFieldIndex; fieldIndex + 1 < signedDistance.Length; fieldIndex++)
+        {
+            float[] lowerField = signedDistance[fieldIndex];
+            float[] higherField = signedDistance[fieldIndex + 1];
+            for (int sampleIndex = 0; sampleIndex < higherField.Length; sampleIndex++)
+            {
+                higherField[sampleIndex] = Mathf.Min(higherField[sampleIndex], lowerField[sampleIndex] - MinimumLedgeBetweenStackedWallsMetres);
+            }
+        }
+        for (int fieldIndex = levelZeroFieldIndex; fieldIndex > 0; fieldIndex--)
+        {
+            float[] shallowerField = signedDistance[fieldIndex];
+            float[] deeperField = signedDistance[fieldIndex - 1];
+            for (int sampleIndex = 0; sampleIndex < deeperField.Length; sampleIndex++)
+            {
+                deeperField[sampleIndex] = Mathf.Max(deeperField[sampleIndex], shallowerField[sampleIndex] + MinimumLedgeBetweenStackedWallsMetres);
+            }
+        }
     }
 
     private static bool AnySampleNegative(float[] samples)

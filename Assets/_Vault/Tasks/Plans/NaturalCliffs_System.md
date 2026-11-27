@@ -1,5 +1,5 @@
 ---
-status: SPEC 2026-11-27, not started. Supersedes TerraceCliffEdges_System.md from wave 4 on (its waves 1-3 are partly undone here, see section 1 and wave 0).
+status: BUILDING 2026-11-27, wave 0 done, wave 1 next. Supersedes TerraceCliffEdges_System.md from wave 4 on (its waves 1-3 are partly undone here, see section 1 and wave 0).
 parent: Tasks/Plans/Terraces_System.md (levels, walls, ramps), Tasks/Plans/TerrainEdgeTiles_System.md (ground biome edge tiles, unchanged)
 references: Tasks/References/Edges1.png (tall cliff, full profile), Edges2.png (low ledge that fades in and out, left side; short cliff, right), Edges3.png (soft low edge, apron under the lip)
 good earlier capture: Tasks/Captures/Terraces_2026-11-21/r4_06_gameplay_camera.png (rounded freeform outline, striated wall: the starting point)
@@ -364,3 +364,13 @@ Guards measured on a capture by a small script, not by eye:
   and kept 3 ground edge sets. Cause: grid-locked outline + one-octave shapes + one step height + bright smooth wall.
   Direction: back to the freeform outline of 2026-11-21, new plateau field with styles, low ledges as short cliffs,
   edge-art ribbons from the straight atlas pieces, per-tile roll with a 6 m lock band.
+- 2026-11-27 Wave 0 done. Owner's atlas/reference work committed (b9603357). Kept AlongCliff landing wall + 15-degree
+  caravan limit (7578236c); C5a ramp mask reverted, TerraceHillBankField deleted, both in
+  `Tasks/Claude/CliffEdges_wave4_leftovers.patch` (the one non-C5a hunk, `MajorityTiesHigher` made internal, only served
+  the hill bank). T0 `contact_sheet.py` (ce95c643). Gate fix: stale check now per assembly (2a6b298d). Baseline found a
+  double-step bug in the freeform path (level 2 beside level 0: fields crossed, 163 multi-level sub-cells, floating
+  slab); `NestStackedLevelFieldsWithLedge` keeps each level >= 3 m inside the one below (fixture
+  `DoubleStepNeverPutsTwoLevelsInOneSubcell`, fails at 320 without it). Bridge pins `_TerraceCliffEdgesReady` = 0.
+  Sheet `Captures/NaturalCliffs_2026-11-27/sheet_00_baseline.png`: the 11-21 look is back on tile 0_0; a stale ramp
+  placement from the old data remains until the wave-2 regenerate. Tile rebuild = 14.4 s (G2 budget is 2 s: measure
+  stages in wave 4). Section 6 check: Utils references Data, so `TerracePlateauStyle` goes to `Data/Terrain/`.

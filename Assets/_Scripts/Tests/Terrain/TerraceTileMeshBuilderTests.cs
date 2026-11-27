@@ -53,6 +53,16 @@ namespace StitchPunk.Tests
         }
 
         [Test]
+        public void DoubleStepNeverPutsTwoLevelsInOneSubcell()
+        {
+            world.maxTerraceLevels = 2;
+            FillLevel(40, 59, 40, 59, 2);
+            mesh = TerraceTileMeshBuilder.BuildTerracedTileMesh(tile, world, null, null, 0f);
+
+            Assert.AreEqual(0, TerraceTileMeshBuilder.LastBuildMultiCrossingSubcells);
+        }
+
+        [Test]
         public void InteriorPlateauWithNotchOnlyOpenEdgesAreTheHiddenSkirtSeams()
         {
             FillLevel(30, 69, 30, 69, 1);

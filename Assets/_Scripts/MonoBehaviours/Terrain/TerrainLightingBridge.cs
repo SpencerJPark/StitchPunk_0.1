@@ -141,8 +141,8 @@ public class TerrainLightingBridge : MonoBehaviour
         // SetGlobalColor does not gamma-convert, and these are picked in sRGB like every inspector colour.
         Shader.SetGlobalColor(TerraceRimRockPropertyId, rimRockColour.linear);
         Shader.SetGlobalColor(TerraceFootRockPropertyId, footRockColour.linear);
-        // An unbound Texture2DArray samples as zero coverage, which would paint rock along every rim; the shader falls back on 0.
-        Shader.SetGlobalFloat(TerraceCliffEdgesReadyPropertyId, terraceCliffEdgeArray != null ? 1f : 0f);
+        // NC-D1 retired the ground-shader cliff-edge pass (the freeform wall path draws the rim); the pass is deleted in NC-D18.
+        Shader.SetGlobalFloat(TerraceCliffEdgesReadyPropertyId, 0f);
         if (!edgeTilesEnabled || grassEdgeTileAtlas == null)
         {
             Shader.DisableKeyword(GroundEdgeTilesKeyword);

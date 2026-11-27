@@ -117,6 +117,8 @@ Replaces the section below from its wave 4 on. The owner rejected the grid-locke
 - Offline mock: `edge_tile_mock.py --cliff-edges <dir>`. The foot is sampled at the pixel's own XZ with the complement case, never pushed toward the plateau.
 
 ## Traps
+- Freeform terrace path: each level threshold's field is rounded on its own, so a double step (level 2 beside 0) made the fields cross and `EmitSubcell` marched only the lowest one (floating slab, no wall). `NestStackedLevelFieldsWithLedge` forces a 3 m ledge; `LastBuildMultiCrossingSubcells` must stay 0.
+- After an edit, the first `refresh_unity` can leave the old assembly loaded; probe a value that the edit changes before trusting a revert-check or capture, and refresh again if it is stale.
 - Tile subscenes are `AutoLoadScene=false` and draw nothing in the Scene view when closed; `TerrainOpenTilesSessionRestore` (TerrainTilesPanel.cs) reopens every `Tile_*` subscene for ~10 s after a reload, scene open or Play exit. Closing a tile on purpose lasts until the next one of those.
 - A test that creates GameObjects in the ACTIVE scene can leak them, and any later `SaveScene(active)` (tile creation does this) writes them into CampLoop.unity (it grew by 100k lines). Scatter tests run in `EditorSceneManager.NewPreviewScene()` (an additive `NewScene` throws "untitled scene unsaved" because the test runner leaves an untitled scene open); check `git diff --stat Assets/Scenes/CampLoop.unity` after any test run that touches scene objects.
 - `Assets/_Scripts/Tests/StitchPunk.Tests.asmdef` edits: apply one change at a time and re-validate the JSON; two overlapping edits once corrupted it and the test list silently became empty (0 tests, run "succeeded").
