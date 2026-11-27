@@ -103,6 +103,8 @@ public static class TerrainTestWorldBuilder
         try
         {
             EditorUtility.DisplayProgressBar(target.progressTitle, "Copying the template scene", 0f);
+            // Replacing a scene file that is open makes Unity ask "reload?" in a modal dialog, which stalls an unattended build.
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             if (AssetDatabase.DeleteAsset(target.tileFolder)) AssetDatabase.Refresh();
             EnsureFolder(target.tileFolder);
             if (!AssetDatabase.CopyAsset(TemplateScenePath, target.scenePath)) return "Could not copy " + TemplateScenePath + " to " + target.scenePath;

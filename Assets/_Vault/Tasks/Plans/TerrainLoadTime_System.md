@@ -61,3 +61,24 @@ Opening a 3 x 3 terrain world (RandomWorld) took 5+ minutes, looped, and once lo
 ## Log
 
 - 2026-11-26 spec written from the audit; L1-L4 started.
+
+## Unattended Editor control (LT-D8, added 2026-11-27)
+
+The owner works remotely; Claude sessions kept stalling. Two root causes, both measured:
+- **An unfocused Editor does not tick.** `EditorApplication.delayCall` / `update`, live bake and closed-tile streaming
+  wait for focus (probe: a delayCall did not fire in 20 s unfocused, fired within 2 s after focusing). MCP
+  `execute_code` itself still runs. Tool: `powershell -NoProfile -File Tools/devloop/unity_focus.ps1` (restores and
+  focuses the window; Alt tap so Windows allows it). Run it before any delayCall-based or streaming-dependent step.
+- **Modal dialogs** (scene reload/save prompts) block everything. Tool: `Tools/devloop/unity_dialogs.ps1` lists dialog
+  text and buttons via UI Automation; `-Click "<button text>"` presses one. Cause removed at the source:
+  `TerrainTestWorldBuilder.BuildWorld` opens an empty scene before replacing the target scene file, so a rebuild never
+  rewrites an open scene.
+
+## Measured 2026-11-27
+
+- Open RandomWorld (3 x 3), no tiles recorded open: **360 ms** to first editor frame (was 5+ min, looping). A1 met.
+- Rebuild RandomWorld 3 x 3: 601 s (generation, not load; partly stalled unfocused). Not a load-time target; next.
+- `TerrainMesh` after welding: 53,110 vertices on Tile_0_0 (was 181,134); 9 tile assets 97 MB (was 188 MB). A4 not met
+  (target 30k / 5 MB): flat-block merge (LT-D5 second step) still owed.
+- Terrace/generator fixtures: 20 pass, 1 inconclusive (pre-existing, no region away from the rim).
+- Not yet measured: A2 (recompile with one tile open), A3 (Play exit).
