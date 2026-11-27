@@ -329,9 +329,20 @@ public static class TerrainTileAssets
         AssetDatabase.ImportAsset(texturePath, ImportAssetOptions.ForceUpdate);
 
         TextureImporter importer = AssetImporter.GetAtPath(texturePath) as TextureImporter;
-        if (importer != null && (!existedBefore || importer.textureType != TextureImporterType.SingleChannel))
+        TextureImporterSettings importerSettings = new TextureImporterSettings();
+        if (importer != null)
+        {
+            importer.ReadTextureSettings(importerSettings);
+        }
+        if (importer != null && (!existedBefore
+            || importer.textureType != TextureImporterType.SingleChannel
+            || importerSettings.singleChannelComponent != TextureImporterSingleChannelComponent.Red))
         {
             importer.textureType = TextureImporterType.SingleChannel;
+            // Alpha8 (the default single channel) reads 0 from .r in the shader; Red imports as R8.
+            importer.ReadTextureSettings(importerSettings);
+            importerSettings.singleChannelComponent = TextureImporterSingleChannelComponent.Red;
+            importer.SetTextureSettings(importerSettings);
             importer.sRGBTexture = false;
             importer.wrapMode = TextureWrapMode.Clamp;
             importer.filterMode = FilterMode.Point;

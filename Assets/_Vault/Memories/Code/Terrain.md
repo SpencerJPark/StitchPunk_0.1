@@ -110,6 +110,7 @@ corner derived by the compositor, per-pair edge sets. Drawing rules + templates:
 - Cliff Rim/Foot atlases come from `export_transition_atlas.py --cliff <Biome|all>`: each pixel samples the source ground piece at `q = p - offset * analyticCaseGradient(p)`. A numerically smoothed gradient warp or eroding the coverage both wreck the lobes (tried, rejected). Foot offset 0.675 m leaves only 0.325 m of lower biome in a cell, so single-corner foot pieces are tiny by geometry.
 - Play-mode capture camera: `CopyFrom(Camera.main)` copies the main camera's overridden view matrix, so moving the transform does nothing until `ResetWorldToCameraMatrix()` / `ResetProjectionMatrix()` / `ResetCullingMatrix()`. Mask to Default|Ground|Water to drop props.
 - Tile mesh: bevels (top/foot fillets) are ground-submesh triangles with ground uv (level in z) when `terraceUseTileCliffEdges`; only the face is wall submesh. `EmitSubcell` inside a ramp footprint skips ground only; walls go through `TryClipSegmentOutsideRamps` (AlongCliff clips only its landing).
+- Ground shader cliff pass (`TerraceCliffEdge` in PaintedGround.shader) runs only when `_TerraceCliffEdgesReady` = 1 (bridge has the array); it marks its cells `terraceEdgeOwned` so the slope `_CLIFFS` texture stays off the bevels. Debug it by setting the bridge rock colours to pure red/blue in Play mode. Corner-level texture must be R8 (see Gotchas).
 - Offline mock: `edge_tile_mock.py --cliff-edges <dir>`. The foot is sampled at the pixel's own XZ with the complement case, never pushed toward the plateau.
 
 ## Traps

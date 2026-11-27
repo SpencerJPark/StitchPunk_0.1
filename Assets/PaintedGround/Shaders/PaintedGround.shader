@@ -246,6 +246,11 @@ Shader "Painted/Ground"
             TEXTURE2D(_GroundEdgeTileAtlasG);
             TEXTURE2D(_GroundEdgeTileAtlasB);
             float  _GroundEdgeTileCellMetres;
+            // Terrace cliff rim/foot sets (slices 0-3 rim Dirt/Grass/Forest/Stone, 4-7 foot); globals outside the CBUFFER, set by the terrace bridge.
+            TEXTURE2D_ARRAY(_TerraceCliffEdges);
+            float4 _TerraceRimRock;
+            float4 _TerraceFootRock;
+            float  _TerraceCliffEdgesReady;      // 1 when the array is bound
             float4 _StitchInkDetailTileMetres;   // world metres per detail tile: Base, R, G, B
             float4 _StitchInkDetailParams;       // x = line, y = tone, z = scratch strength, w = flatten painted texture
             float  _StitchTransitionCellMetres;
@@ -313,6 +318,53 @@ Shader "Painted/Ground"
                 PaintedTransitionTile_float(_GroundEdgeTileAtlasR, sampler_linear_clamp, cornerInside, globalCellCoordinate, 47.0,
                                             colourPlaceholder, colourPlaceholder, 0.0, 0.0, discardedColour, inkOut, discardedRim);
                 return inkOut;
+            }
+
+            // Rim or foot of one cliff side: each layer's set is tapped by its final paint weight, so the cliff reads the biome per pixel.
+            // The anti-aliasing width is taken outside any branch (masks instead of early-outs) so fwidth always sees valid neighbours.
+            void TerraceCliffEdgeSide(float caseIndex, float firstSlice, float seedOffset, float4 layerWeights, float2 globalCellCoordinate,
+                                      float3 rockColour, inout float3 col, inout float ink, inout float rim)
+            {
+                const float4 groundSeeds = float4(53.0, 0.0, 17.0, 31.0);
+                float sideActive = (caseIndex > 0.5 && caseIndex < 14.5) ? 1.0 : 0.0;
+                float coverage = 0.0;
+                float weightedInk = 0.0;
+                [unroll] for (int layerIndex = 0; layerIndex < 4; layerIndex++)
+                {
+                    float layerWeight = layerWeights[layerIndex];
+                    float tapCase = (layerWeight > 0.02) ? caseIndex : 0.0;
+                    float3 tap = CliffEdgeTileSample(_TerraceCliffEdges, sampler_linear_clamp, firstSlice + layerIndex, tapCase,
+                                                     globalCellCoordinate, groundSeeds[layerIndex] + seedOffset);
+                    float appliedWeight = layerWeight * sideActive;
+                    coverage += appliedWeight * tap.r;
+                    weightedInk += appliedWeight * tap.b;
+                }
+                float coverageAntiAlias = max(fwidth(coverage), 1e-3);
+                float cut = smoothstep(0.5 - coverageAntiAlias, 0.5 + coverageAntiAlias, coverage);
+                float cliffCut = lerp(1.0, cut, sideActive);
+                col = lerp(rockColour, col, cliffCut);
+                ink = max(ink * cliffCut, weightedInk);
+                rim *= cliffCut;
+            }
+
+            void TerraceCliffEdge(float2 wxz, float myLevel, float4 layerWeights, inout float3 col, inout float ink, inout float rim, out float edgeOwned)
+            {
+                float  cellMetres = _TerraceCornerOrigin.z;
+                int2   cellIndex = (int2)floor((wxz - _TerraceCornerOrigin.xy) / cellMetres);
+                float2 globalCellCoordinate = wxz / cellMetres;
+                float4 cornerLevels = float4(
+                    TerraceCornerLevel(cellIndex + int2(0, 1)),
+                    TerraceCornerLevel(cellIndex + int2(1, 1)),
+                    TerraceCornerLevel(cellIndex + int2(1, 0)),
+                    TerraceCornerLevel(cellIndex));
+                float rimCase = dot(step(myLevel, cornerLevels), float4(1, 2, 4, 8));
+                float footCase = dot(step(myLevel + 1.0, cornerLevels), float4(1, 2, 4, 8));
+                float footSideCase = 15.0 - footCase;
+                bool rimOwned = rimCase > 0.5 && rimCase < 14.5;
+                bool footOwned = footSideCase > 0.5 && footSideCase < 14.5;
+                edgeOwned = (rimOwned || footOwned) ? 1.0 : 0.0;
+                TerraceCliffEdgeSide(rimCase, 0.0, 100.0, layerWeights, globalCellCoordinate, _TerraceRimRock.rgb, col, ink, rim);
+                TerraceCliffEdgeSide(footSideCase, 4.0, 200.0, layerWeights, globalCellCoordinate, _TerraceFootRock.rgb, col, ink, rim);
             }
 
             #define FRINGE_ROWS 4.0
@@ -386,6 +438,9 @@ Shader "Painted/Ground"
                 float3 layerGColour = InkedLayer(TEXTURE2D_ARGS(_LayerGTex, sampler_BaseTex), TEXTURE2D_ARGS(_StitchInkDetailGTex, sampler_BaseTex), wxz, _TileSizes.z, _StitchInkDetailTileMetres.z, patchMask);
                 float3 layerBColour = InkedLayer(TEXTURE2D_ARGS(_LayerBTex, sampler_BaseTex), TEXTURE2D_ARGS(_StitchInkDetailBTex, sampler_BaseTex), wxz, _TileSizes.w, _StitchInkDetailTileMetres.w, patchMask);
                 float  ink = 0, rim = 0;
+                float4 layerWeights = float4(1, 0, 0, 0);   // final paint weight of Dirt, Grass, Forest, Stone (sums to 1)
+                float  layerCoverage = 0;
+                float  terraceEdgeOwned = 0.0;   // 1 where the terrace cliff-edge pass owns this pixel's cell
             #if defined(_GROUND_EDGE_TILES) && defined(_SPLAT_WORLDTEXTURE)
                 // Same corner-tap scheme as the ink look below, on the edge-tile atlas; ink goes through PaintedFinish with the material's _InkColor.
                 float  edgeTileCellMetres = max(_GroundEdgeTileCellMetres, 0.1);
@@ -396,18 +451,28 @@ Shader "Painted/Ground"
                 float3 edgeCornerTopRight    = SAMPLE_TEXTURE2D_LOD(_SplatMap, sampler_linear_clamp, (edgeCellOrigin + edgeTileCellMetres - _SplatBounds.xy) * edgeSplatScale, 0).rgb;
                 float3 edgeCornerBottomRight = SAMPLE_TEXTURE2D_LOD(_SplatMap, sampler_linear_clamp, (edgeCellOrigin + float2(edgeTileCellMetres, 0) - _SplatBounds.xy) * edgeSplatScale, 0).rgb;
                 float3 edgeCornerBottomLeft  = SAMPLE_TEXTURE2D_LOD(_SplatMap, sampler_linear_clamp, (edgeCellOrigin - _SplatBounds.xy) * edgeSplatScale, 0).rgb;
-                PaintedTransitionTile_float(_GroundEdgeTileAtlasR, sampler_linear_clamp, float4(edgeCornerTopLeft.r, edgeCornerTopRight.r, edgeCornerBottomRight.r, edgeCornerBottomLeft.r),
-                                            edgeCellCoordinate, 0.0, layerRColour, col, ink, rim, col, ink, rim);
-                PaintedTransitionTile_float(_GroundEdgeTileAtlasG, sampler_linear_clamp, float4(edgeCornerTopLeft.g, edgeCornerTopRight.g, edgeCornerBottomRight.g, edgeCornerBottomLeft.g),
-                                            edgeCellCoordinate, 17.0, layerGColour, col, ink, rim, col, ink, rim);
-                PaintedTransitionTile_float(_GroundEdgeTileAtlasB, sampler_linear_clamp, float4(edgeCornerTopLeft.b, edgeCornerTopRight.b, edgeCornerBottomRight.b, edgeCornerBottomLeft.b),
-                                            edgeCellCoordinate, 31.0, layerBColour, col, ink, rim, col, ink, rim);
+                PaintedTransitionTileCoverage_float(_GroundEdgeTileAtlasR, sampler_linear_clamp, float4(edgeCornerTopLeft.r, edgeCornerTopRight.r, edgeCornerBottomRight.r, edgeCornerBottomLeft.r),
+                                            edgeCellCoordinate, 0.0, layerRColour, col, ink, rim, col, ink, rim, layerCoverage);
+                layerWeights *= 1.0 - layerCoverage; layerWeights.y = layerCoverage;
+                PaintedTransitionTileCoverage_float(_GroundEdgeTileAtlasG, sampler_linear_clamp, float4(edgeCornerTopLeft.g, edgeCornerTopRight.g, edgeCornerBottomRight.g, edgeCornerBottomLeft.g),
+                                            edgeCellCoordinate, 17.0, layerGColour, col, ink, rim, col, ink, rim, layerCoverage);
+                layerWeights *= 1.0 - layerCoverage; layerWeights.z = layerCoverage;
+                PaintedTransitionTileCoverage_float(_GroundEdgeTileAtlasB, sampler_linear_clamp, float4(edgeCornerTopLeft.b, edgeCornerTopRight.b, edgeCornerBottomRight.b, edgeCornerBottomLeft.b),
+                                            edgeCellCoordinate, 31.0, layerBColour, col, ink, rim, col, ink, rim, layerCoverage);
+                layerWeights *= 1.0 - layerCoverage; layerWeights.w = layerCoverage;
                 if (_TerraceCornerOrigin.w > 0.5)
                 {
                     float terraceMyLevel = round(IN.terraceLevel);
                     // Rim: the top surface of this level; foot: the lower ground, which receives the plateau's outward flicks.
-                    ink = max(ink, TerraceEdgeTileInk(wxz, terraceMyLevel, col));
-                    ink = max(ink, TerraceEdgeTileInk(wxz, terraceMyLevel + 1.0, col));
+                    if (_TerraceCliffEdgesReady > 0.5)
+                    {
+                        TerraceCliffEdge(wxz, terraceMyLevel, layerWeights, col, ink, rim, terraceEdgeOwned);
+                    }
+                    else
+                    {
+                        ink = max(ink, TerraceEdgeTileInk(wxz, terraceMyLevel, col));
+                        ink = max(ink, TerraceEdgeTileInk(wxz, terraceMyLevel + 1.0, col));
+                    }
                 }
             #elif defined(STITCH_INK_LOOK) && defined(_SPLAT_WORLDTEXTURE)
                 // Four corner taps shared by all three channels; a corner's world position gives the same value in every cell that owns it.
@@ -440,7 +505,8 @@ Shader "Painted/Ground"
                 float3 cliffCol =
                     SAMPLE_TEXTURE2D(_CliffTex, sampler_BaseTex, posWS.zy / _CliffTileSize).rgb * cw.x +
                     SAMPLE_TEXTURE2D(_CliffTex, sampler_BaseTex, posWS.xy / _CliffTileSize).rgb * cw.y;
-                float steep = 1.0 - smoothstep(_CliffStart, _CliffEnd, n.y);
+                // The cliff-edge pass owns its cells' bevels; the slope texture is only for un-tiled steep ground.
+                float steep = (1.0 - smoothstep(_CliffStart, _CliffEnd, n.y)) * (1.0 - terraceEdgeOwned);
                 float2 gC; DerivativeGradient_float(steep, wxz, gC);
                 PaintedFringe_float(_FringeTex, sampler_BaseTex, steep, gC, wxz, 3, FRINGE_ROWS, fringeWid, fringeLen, brush.r, _BlendNoiseAmount,
                                     cliffCol, col, ink, rim, col, ink, rim);

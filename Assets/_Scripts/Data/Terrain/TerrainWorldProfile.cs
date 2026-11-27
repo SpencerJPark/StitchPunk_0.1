@@ -37,6 +37,8 @@ public class TerrainWorldProfile : ScriptableObject
     [Tooltip("Tight rock bevel at a cliff foot, metres (TX-D11, owner round 2)")] public float terraceFootRoundMetres = 0.45f;
     // Bevels go into the ground mesh and are inked by the ground shader's rim/foot tiles instead of the wall fillets (CE-D2).
     public bool terraceUseTileCliffEdges = true;
+    // Profile field so 1.0 / 1.5 / 2.0 can be compared in play (HL-Q1).
+    public float hillStepHeightMetres = 1.5f;
 
     public string groundLayerName = "Ground";
 

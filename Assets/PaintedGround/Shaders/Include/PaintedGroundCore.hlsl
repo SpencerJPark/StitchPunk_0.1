@@ -106,24 +106,10 @@ void PaintedFringe_float(Texture2D fringe, SamplerState ss,
 //     with the neighbouring cells, so neighbours always agree and no seam can open.
 //     Atlas: 8 x 4 cells, case c variant v at column c % 8, row c / 8 + 2v. R coverage, G rim, B ink.
 // ---------------------------------------------------------------------------------------------
-void PaintedTransitionTile_float(Texture2D atlas, SamplerState ss,
-                                 float4 cornerWeights, float2 cellCoordinate, float variantSeed,
-                                 float3 layerCol, float3 colIn, float inkIn, float rimIn,
-                                 out float3 colOut, out float inkOut, out float rimOut)
+// Case/variant/inset/atlas-uv math shared by every 8 x 4 case atlas sample (Texture2D atlas and cliff Texture2DArray slices).
+void PaintedTransitionTileAtlasLookup(float caseIndex, float2 cellCoordinate, float variantSeed,
+                                      out float2 atlasUV, out float2 atlasDdx, out float2 atlasDdy)
 {
-    float4 cornerInside = step(0.5, cornerWeights);
-    float  caseIndex = dot(cornerInside, float4(1, 2, 4, 8));
-    // Fully outside / fully inside cells never sample: at low mips the atlas cells bleed into each other and drew a grid.
-    if (caseIndex < 0.5)
-    {
-        colOut = colIn; inkOut = inkIn; rimOut = rimIn;
-        return;
-    }
-    if (caseIndex > 14.5)
-    {
-        colOut = layerCol; inkOut = 0.0; rimOut = 0.0;
-        return;
-    }
     float2 cellIndex = floor(cellCoordinate);
     float2 cellLocal = frac(cellCoordinate);
     // Integer hash, mirrored in TerrainEdgeTileCases.VariantFor: terrace outlines pick the same variant on the CPU.
@@ -135,21 +121,67 @@ void PaintedTransitionTile_float(Texture2D atlas, SamplerState ss,
     float  variant = (float)(variantHash & 1u);
 
     // Gradients from the continuous coordinate: the frac() jump at cell borders would pick the smallest mip in a one-pixel line.
-    float2 atlasDdx = ddx(cellCoordinate) / float2(8.0, 4.0);
-    float2 atlasDdy = ddy(cellCoordinate) / float2(8.0, 4.0);
+    atlasDdx = ddx(cellCoordinate) / float2(8.0, 4.0);
+    atlasDdy = ddy(cellCoordinate) / float2(8.0, 4.0);
     // Inset by half a texel of the mip actually sampled (128 px cells at mip 0), so filtering never reads the neighbouring cell.
     float  texelsPerPixel = max(length(ddx(cellCoordinate)), length(ddy(cellCoordinate))) * 128.0;
     float  insetInCell = min(0.5 * max(texelsPerPixel, 1.0) / 128.0, 0.25);
     float2 insetLocal = clamp(cellLocal, insetInCell, 1.0 - insetInCell);
     float  atlasColumn = fmod(caseIndex, 8.0);
     float  atlasRow = floor(caseIndex / 8.0) + 2.0 * variant;
-    float2 atlasUV = float2((atlasColumn + insetLocal.x) / 8.0, 1.0 - (atlasRow + 1.0 - insetLocal.y) / 4.0);
+    atlasUV = float2((atlasColumn + insetLocal.x) / 8.0, 1.0 - (atlasRow + 1.0 - insetLocal.y) / 4.0);
+}
+
+void PaintedTransitionTileCoverage_float(Texture2D atlas, SamplerState ss,
+                                         float4 cornerWeights, float2 cellCoordinate, float variantSeed,
+                                         float3 layerCol, float3 colIn, float inkIn, float rimIn,
+                                         out float3 colOut, out float inkOut, out float rimOut, out float coverageOut)
+{
+    float4 cornerInside = step(0.5, cornerWeights);
+    float  caseIndex = dot(cornerInside, float4(1, 2, 4, 8));
+    // Fully outside / fully inside cells never sample: at low mips the atlas cells bleed into each other and drew a grid.
+    if (caseIndex < 0.5)
+    {
+        colOut = colIn; inkOut = inkIn; rimOut = rimIn; coverageOut = 0.0;
+        return;
+    }
+    if (caseIndex > 14.5)
+    {
+        colOut = layerCol; inkOut = 0.0; rimOut = 0.0; coverageOut = 1.0;
+        return;
+    }
+    float2 atlasUV; float2 atlasDdx; float2 atlasDdy;
+    PaintedTransitionTileAtlasLookup(caseIndex, cellCoordinate, variantSeed, atlasUV, atlasDdx, atlasDdy);
     float3 tile = atlas.SampleGrad(ss, atlasUV, atlasDdx, atlasDdy).rgb;
 
     float a = tile.r;
     colOut = lerp(colIn, layerCol, a);
     rimOut = max(rimIn * (1.0 - a), tile.g);
     inkOut = max(inkIn * (1.0 - a), tile.b);
+    coverageOut = a;
+}
+
+void PaintedTransitionTile_float(Texture2D atlas, SamplerState ss,
+                                 float4 cornerWeights, float2 cellCoordinate, float variantSeed,
+                                 float3 layerCol, float3 colIn, float inkIn, float rimIn,
+                                 out float3 colOut, out float inkOut, out float rimOut)
+{
+    float discardedCoverage;
+    PaintedTransitionTileCoverage_float(atlas, ss, cornerWeights, cellCoordinate, variantSeed,
+                                        layerCol, colIn, inkIn, rimIn, colOut, inkOut, rimOut, discardedCoverage);
+}
+
+// Cliff rim/foot array sample: r coverage, b ink. Case 0 draws nothing, case 15 is solid.
+float3 CliffEdgeTileSample(Texture2DArray cliffArray, SamplerState ss, float slice, float caseIndex,
+                           float2 cellCoordinate, float variantSeed)
+{
+    if (caseIndex < 0.5)
+        return float3(0.0, 0.0, 0.0);
+    if (caseIndex > 14.5)
+        return float3(1.0, 0.0, 0.0);
+    float2 atlasUV; float2 atlasDdx; float2 atlasDdy;
+    PaintedTransitionTileAtlasLookup(caseIndex, cellCoordinate, variantSeed, atlasUV, atlasDdx, atlasDdy);
+    return cliffArray.SampleGrad(ss, float3(atlasUV, slice), atlasDdx, atlasDdy).rgb;
 }
 
 // ---------------------------------------------------------------------------------------------

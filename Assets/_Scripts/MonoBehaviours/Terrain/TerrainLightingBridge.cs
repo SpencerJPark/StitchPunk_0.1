@@ -27,6 +27,7 @@ public class TerrainLightingBridge : MonoBehaviour
     static readonly int TerraceCliffEdgesPropertyId = Shader.PropertyToID("_TerraceCliffEdges");
     static readonly int TerraceRimRockPropertyId = Shader.PropertyToID("_TerraceRimRock");
     static readonly int TerraceFootRockPropertyId = Shader.PropertyToID("_TerraceFootRock");
+    static readonly int TerraceCliffEdgesReadyPropertyId = Shader.PropertyToID("_TerraceCliffEdgesReady");
 
     public Color ambientTint = Color.white;
 
@@ -85,8 +86,8 @@ public class TerrainLightingBridge : MonoBehaviour
 
     [Tooltip("Rim slices (Dirt, Grass, Forest, Stone) then Foot slices; packed by Stitch Punk/Terrain/Edge Tiles/Pack Cliff Edge Sets.")]
     public Texture2DArray terraceCliffEdgeArray;
-    public Color rimRockColour = new Color(0.80f, 0.71f, 0.58f);
-    public Color footRockColour = new Color(0.42f, 0.36f, 0.30f);
+    public Color rimRockColour = new Color(0.72f, 0.62f, 0.50f);
+    public Color footRockColour = new Color(0.33f, 0.27f, 0.22f);
 
     [Min(0.5f)] public float edgeTileCellMetres = 2f;
 
@@ -137,8 +138,11 @@ public class TerrainLightingBridge : MonoBehaviour
         {
             Shader.SetGlobalTexture(TerraceCliffEdgesPropertyId, terraceCliffEdgeArray);
         }
-        Shader.SetGlobalColor(TerraceRimRockPropertyId, rimRockColour);
-        Shader.SetGlobalColor(TerraceFootRockPropertyId, footRockColour);
+        // SetGlobalColor does not gamma-convert, and these are picked in sRGB like every inspector colour.
+        Shader.SetGlobalColor(TerraceRimRockPropertyId, rimRockColour.linear);
+        Shader.SetGlobalColor(TerraceFootRockPropertyId, footRockColour.linear);
+        // An unbound Texture2DArray samples as zero coverage, which would paint rock along every rim; the shader falls back on 0.
+        Shader.SetGlobalFloat(TerraceCliffEdgesReadyPropertyId, terraceCliffEdgeArray != null ? 1f : 0f);
         if (!edgeTilesEnabled || grassEdgeTileAtlas == null)
         {
             Shader.DisableKeyword(GroundEdgeTilesKeyword);

@@ -858,3 +858,9 @@ The trade letter used `top: 50%; margin-top: -260px` and grew with its offers; f
 - Without the attribute Unity keys every subscene import on the assembly's module id. 16 baking systems live in `StitchPunk.Systems`, so any system edit re-imported every subscene. With it (`[BakingVersion("stitchpunk", N)]` on all of them), a subscene re-bakes only when its own content, a type it uses, or a version number changes.
 - The trap this buys: edit a `Bake` body and forget to bump N, and every cached subscene keeps the OLD bake with no error. `devloop lint` rule `baking-version` flags a changed baker file whose version line did not change, and any baker that lacks the attribute (one unversioned baker puts the whole assembly back on rebake-on-every-change, with a console warning).
 - Never hash editor-persisted state with `System.HashCode`: it is seeded per process, so the value changes on every Editor restart (`TerrainNavBaker.BlockerHashOf` uses a hand-rolled combine).
+
+## A SingleChannel texture imports as Alpha8 unless you set `singleChannelComponent = Red` (2026-11-27)
+`TextureImporterType.SingleChannel` defaults to the Alpha component, and an Alpha8 texture reads 0 from `.r` in HLSL. The terrace corner-level texture did this from PT3 on: every corner decoded to level -3, so no terrace rim art ever drew (the "ink is painted under the wall" theory was wrong). Set it through `TextureImporterSettings.singleChannelComponent`, and probe a texture's real values with a Blit + ReadPixels before trusting a shader path.
+
+## `Shader.SetGlobalColor` does not gamma-convert (2026-11-27)
+Unlike `Material.SetColor`, a global colour arrives in the shader as given. Inspector colours are sRGB, so push `colour.linear` or they render far too light (0.2 showed as 0.47).

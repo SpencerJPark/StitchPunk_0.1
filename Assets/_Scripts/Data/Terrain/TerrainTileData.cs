@@ -28,6 +28,7 @@ public class TerrainTileData : ScriptableObject
     public const int TerraceLevelBias = 3;
     public const int MinTerraceLevel = -3;
     public const int MaxTerraceLevel = 3;
+    public const byte NoHandTerraceStepKinds = 255;
 
     public Vector2Int coordinate;
     public int maskResolution = 256;
@@ -43,6 +44,9 @@ public class TerrainTileData : ScriptableObject
 
     public byte[] baseTerraceLevels;                        // length 10000, biased bytes (level + TerraceLevelBias), null = all level 0
     public byte[] handTerraceLevels;                        // length 10000, biased bytes, 255 = no override, null = no overrides
+    // Step kind bits: bit k-1 = step +k, bit k+2 = step -k (k = 1..3); a set bit means Hill, clear means Cliff.
+    public byte[] baseTerraceStepKinds;                     // length 10000, null = all Cliff
+    public byte[] handTerraceStepKinds;                     // length 10000, 255 = no override, null = no overrides
 
     public Texture2D baseMask;
     [Tooltip("RGBA paint overlay, A = painted.")]
@@ -71,6 +75,61 @@ public class TerrainTileData : ScriptableObject
             handTerraceLevels = new byte[expectedLength];
             Array.Fill(handTerraceLevels, NoHandTerraceLevel);
         }
+    }
+
+    public void EnsureHandTerraceStepKinds()
+    {
+        int expectedLength = TerraceCellsPerSide * TerraceCellsPerSide;
+        if (handTerraceStepKinds == null || handTerraceStepKinds.Length != expectedLength)
+        {
+            handTerraceStepKinds = new byte[expectedLength];
+            Array.Fill(handTerraceStepKinds, NoHandTerraceStepKinds);
+        }
+    }
+
+    public byte EffectiveTerraceStepKinds(int cellIndex)
+    {
+        if (handTerraceStepKinds != null && cellIndex >= 0 && cellIndex < handTerraceStepKinds.Length
+            && handTerraceStepKinds[cellIndex] != NoHandTerraceStepKinds)
+        {
+            return handTerraceStepKinds[cellIndex];
+        }
+        if (baseTerraceStepKinds != null && cellIndex >= 0 && cellIndex < baseTerraceStepKinds.Length)
+        {
+            return baseTerraceStepKinds[cellIndex];
+        }
+        return 0;
+    }
+
+    public static bool IsHillStep(byte stepKinds, int signedStep)
+    {
+        int magnitude = Math.Abs(signedStep);
+        if (magnitude < 1 || magnitude > 3)
+        {
+            return false;
+        }
+        int bitIndex = signedStep > 0 ? magnitude - 1 : magnitude + 2;
+        return (stepKinds & (1 << bitIndex)) != 0;
+    }
+
+    public static float TerraceLevelOffsetMetres(byte stepKinds, int level, float cliffStepMetres, float hillStepMetres)
+    {
+        float offsetMetres = 0f;
+        if (level > 0)
+        {
+            for (int step = 1; step <= level; step++)
+            {
+                offsetMetres += IsHillStep(stepKinds, step) ? hillStepMetres : cliffStepMetres;
+            }
+        }
+        else if (level < 0)
+        {
+            for (int step = -1; step >= level; step--)
+            {
+                offsetMetres -= IsHillStep(stepKinds, step) ? hillStepMetres : cliffStepMetres;
+            }
+        }
+        return offsetMetres;
     }
 
     public void EnsureHeightArrays()
