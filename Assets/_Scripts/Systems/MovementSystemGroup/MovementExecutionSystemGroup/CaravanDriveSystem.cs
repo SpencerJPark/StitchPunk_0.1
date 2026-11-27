@@ -22,6 +22,8 @@ public partial struct CaravanDriveSystem : ISystem
     // Anything flatter than this is ground to roll over, not a wall to stop at.
     private const float WALL_NORMAL_MAX_Y = 0.6f;
     private const float WALL_STOP_GAP = 0.05f;
+    // Far enough ahead that a 15 degree limit is a measurable rise (0.4 m), short enough to see only the next bit of hill.
+    private const float SLOPE_LOOKAHEAD_METRES = 1.5f;
     // Long enough that the front probe of a pitched body still finds the ground on a steep descent.
     private const float GROUND_PROBE_ABOVE = 8f;
     private const float GROUND_PROBE_BELOW = 14f;
@@ -153,6 +155,20 @@ public partial struct CaravanDriveSystem : ISystem
                     // Walls stop a cart dead; there is no slide along them.
                     stepLength *= math.max(0f, allowedFraction - WALL_STOP_GAP / stepLength);
                     forwardSpeed = 0f;
+                }
+                if (stepLength > 0f)
+                {
+                    bool foundGroundHere = TryGroundHeightUnder(collisionWorld, groundFilter, ref groundHits, in loadedTileHeightFields,
+                        position, caravanEntity, driverEntity, out float groundHeightHere);
+                    bool foundGroundAhead = TryGroundHeightUnder(collisionWorld, groundFilter, ref groundHits, in loadedTileHeightFields,
+                        position + travelDirection * SLOPE_LOOKAHEAD_METRES, caravanEntity, driverEntity, out float groundHeightAhead);
+                    if (foundGroundHere && foundGroundAhead && CaravanDriveMath.IsClimbTooSteep(groundHeightHere, groundHeightAhead,
+                            SLOPE_LOOKAHEAD_METRES, CaravanDriveMath.CaravanMaxSlopeDegrees))
+                    {
+                        // Stops as at a wall: no slide, steering still turns the body.
+                        stepLength = 0f;
+                        forwardSpeed = 0f;
+                    }
                 }
                 position += travelDirection * stepLength;
             }

@@ -1,0 +1,664 @@
+diff --git a/Assets/PaintedGround/Shaders/PaintedGround.shader b/Assets/PaintedGround/Shaders/PaintedGround.shader
+index 82a65d5df..5e00adf12 100644
+--- a/Assets/PaintedGround/Shaders/PaintedGround.shader
++++ b/Assets/PaintedGround/Shaders/PaintedGround.shader
+@@ -303,6 +303,13 @@ Shader "Painted/Ground"
+                 return round(_TerraceCornerLevels.Load(int3(clamped, 0)).r * 255.0) - 3.0;
+             }
+ 
++            float TerraceCornerRamp(int2 cornerIndex)
++            {
++                int cornersPerSide = (int)(_TerraceCornerOrigin.w + 0.5);
++                int2 clamped = clamp(cornerIndex, int2(0, 0), int2(cornersPerSide - 1, cornersPerSide - 1));
++                return _TerraceCornerLevels.Load(int3(clamped, 0)).g;
++            }
++
+             // Ink only, from the same atlas, case bits and integer variant hash as the biome tiles (cell index is global: origin is a multiple of the cell size).
+             float TerraceEdgeTileInk(float2 wxz, float levelThreshold, float3 colourPlaceholder)
+             {
+@@ -357,9 +364,12 @@ Shader "Painted/Ground"
+                     TerraceCornerLevel(cellIndex + int2(1, 1)),
+                     TerraceCornerLevel(cellIndex + int2(1, 0)),
+                     TerraceCornerLevel(cellIndex));
+-                float rimCase = dot(step(myLevel, cornerLevels), float4(1, 2, 4, 8));
++                float rampCell = max(max(TerraceCornerRamp(cellIndex + int2(0, 1)), TerraceCornerRamp(cellIndex + int2(1, 1))),
++                                     max(TerraceCornerRamp(cellIndex + int2(1, 0)), TerraceCornerRamp(cellIndex)));
++                float cliffAllowed = rampCell > 0.5 ? 0.0 : 1.0;
++                float rimCase = cliffAllowed * dot(step(myLevel, cornerLevels), float4(1, 2, 4, 8));
+                 float footCase = dot(step(myLevel + 1.0, cornerLevels), float4(1, 2, 4, 8));
+-                float footSideCase = 15.0 - footCase;
++                float footSideCase = cliffAllowed * (15.0 - footCase);
+                 bool rimOwned = rimCase > 0.5 && rimCase < 14.5;
+                 bool footOwned = footSideCase > 0.5 && footSideCase < 14.5;
+                 edgeOwned = (rimOwned || footOwned) ? 1.0 : 0.0;
+diff --git a/Assets/_Scripts/Editor/Terrain/Terraces/TerraceEdgeTileOutline.cs b/Assets/_Scripts/Editor/Terrain/Terraces/TerraceEdgeTileOutline.cs
+index d21fa0947..f9a5dd8e5 100644
+--- a/Assets/_Scripts/Editor/Terrain/Terraces/TerraceEdgeTileOutline.cs
++++ b/Assets/_Scripts/Editor/Terrain/Terraces/TerraceEdgeTileOutline.cs
+@@ -72,7 +72,7 @@ public static class TerraceEdgeTileOutline
+         return signedDistance;
+     }
+ 
+-    private static int MajorityTiesHigher(int[] levels)
++    internal static int MajorityTiesHigher(int[] levels)
+     {
+         int bestLevel = int.MinValue;
+         int bestCount = 0;
+diff --git a/Assets/_Scripts/Editor/Terrain/Terraces/TerraceRampMeshBuilder.cs b/Assets/_Scripts/Editor/Terrain/Terraces/TerraceRampMeshBuilder.cs
+index 0ff5bf29d..670b09acd 100644
+--- a/Assets/_Scripts/Editor/Terrain/Terraces/TerraceRampMeshBuilder.cs
++++ b/Assets/_Scripts/Editor/Terrain/Terraces/TerraceRampMeshBuilder.cs
+@@ -107,7 +107,9 @@ public static class TerraceRampMeshBuilder
+         int wallCellsAlong = WallCellsAlong(ramp);
+         int wallRowCount = wallCellsAlong + 1;
+         int wallSideCount = (HasSideWall(ramp, false) ? 1 : 0) + (HasSideWall(ramp, true) ? 1 : 0);
+-        int vertexCount = surfaceVertexCount + wallSideCount * VerticesPerWallRow * wallRowCount;
++        int endWallRowCount = HasEndWall(ramp) ? EndWallCellsAcross(ramp) + 1 : 0;
++        int sideWallVertexCount = wallSideCount * VerticesPerWallRow * wallRowCount;
++        int vertexCount = surfaceVertexCount + sideWallVertexCount + endWallRowCount * VerticesPerWallRow;
+ 
+         Vector2 forward = ForwardXZ(ramp.yawDegrees);
+         Vector2 right = RightXZ(ramp.yawDegrees);
+@@ -232,6 +234,68 @@ public static class TerraceRampMeshBuilder
+             }
+         }
+ 
++        if (endWallRowCount > 0)
++        {
++            int endWallCells = endWallRowCount - 1;
++            int endWallBase = surfaceVertexCount + sideWallVertexCount;
++            float endWallHeight = ramp.upperHeight - ramp.lowerHeight;
++            float topRound = Mathf.Min(topRoundMetres, 0.3f * endWallHeight);
++            float footRound = Mathf.Min(footRoundMetres, 0.3f * endWallHeight);
++            float batter = 0.08f * endWallHeight;
++            float faceRun = Mathf.Max(0f, endWallHeight - footRound - topRound);
++            float topGrassEndArc = topRound * Mathf.PI * 0.5f;
++            float faceLength = Mathf.Sqrt(batter * batter + faceRun * faceRun);
++            float footGrassStartArc = topGrassEndArc + faceLength;
++            float faceNormalOut = faceLength > 1e-6f ? faceRun / faceLength : 1f;
++            float faceNormalUp = faceLength > 1e-6f ? batter / faceLength : 0f;
++            for (int row = 0; row < endWallRowCount; row++)
++            {
++                float acrossFraction = (float)row / endWallCells;
++                Vector2 worldXZ = PointXZ(ramp, forward, right, 1f, acrossFraction);
++                float acrossMetres = acrossFraction * ramp.widthMetres;
++                int rowBase = endWallBase + row * VerticesPerWallRow;
++                for (int step = 0; step <= FilletSteps; step++)
++                {
++                    float angle = (float)step / FilletSteps * Mathf.PI * 0.5f;
++                    WriteWallVertex(positions, normals, uvs, rowBase + step, worldXZ, ramp.upperHeight, tileOrigin, forward,
++                        topRound * angle, topRound * Mathf.Sin(angle), topRound * (1f - Mathf.Cos(angle)),
++                        Mathf.Sin(angle), Mathf.Cos(angle), acrossMetres, topGrassEndArc, footGrassStartArc);
++                }
++
++                WriteWallVertex(positions, normals, uvs, rowBase + FilletSteps + 1, worldXZ, ramp.upperHeight, tileOrigin, forward,
++                    topGrassEndArc, topRound, topRound, faceNormalOut, faceNormalUp, acrossMetres, topGrassEndArc, footGrassStartArc);
++                WriteWallVertex(positions, normals, uvs, rowBase + FilletSteps + 2, worldXZ, ramp.upperHeight, tileOrigin, forward,
++                    footGrassStartArc, topRound + batter, endWallHeight - footRound, faceNormalOut, faceNormalUp,
++                    acrossMetres, topGrassEndArc, footGrassStartArc);
++                for (int step = 0; step <= FilletSteps; step++)
++                {
++                    float angle = (float)step / FilletSteps * Mathf.PI * 0.5f;
++                    WriteWallVertex(positions, normals, uvs, rowBase + FilletSteps + 3 + step, worldXZ, ramp.upperHeight, tileOrigin, forward,
++                        footGrassStartArc + footRound * angle,
++                        topRound + batter + footRound * (1f - Mathf.Cos(angle)),
++                        endWallHeight - footRound + footRound * Mathf.Sin(angle),
++                        Mathf.Cos(angle), Mathf.Sin(angle), acrossMetres, topGrassEndArc, footGrassStartArc);
++                }
++            }
++
++            if (endWallHeight >= 0.01f)
++            {
++                for (int row = 0; row < endWallCells; row++)
++                {
++                    for (int group = 0; group < 3; group++)
++                    {
++                        for (int step = 0; step < groupRowCounts[group] - 1; step++)
++                        {
++                            int nearUpper = endWallBase + row * VerticesPerWallRow + groupStarts[group] + step;
++                            int farUpper = nearUpper + VerticesPerWallRow;
++                            AddOrientedTriangle(wallTriangles, positions, normals, nearUpper, farUpper, nearUpper + 1);
++                            AddOrientedTriangle(wallTriangles, positions, normals, farUpper, farUpper + 1, nearUpper + 1);
++                        }
++                    }
++                }
++            }
++        }
++
+         Mesh mesh = new Mesh();
+         mesh.name = "TerraceRamp";
+         mesh.indexFormat = vertexCount <= 65535 ? IndexFormat.UInt16 : IndexFormat.UInt32;
+@@ -295,9 +359,50 @@ public static class TerraceRampMeshBuilder
+             chains.Add(chain);
+         }
+ 
++        if (HasEndWall(ramp))
++        {
++            int endRowCount = EndWallCellsAcross(ramp) + 1;
++            float endWallHeight = ramp.upperHeight - ramp.lowerHeight;
++            float topRound = Mathf.Min(topRoundMetres, 0.3f * endWallHeight);
++            float footRound = Mathf.Min(footRoundMetres, 0.3f * endWallHeight);
++            float batter = 0.08f * endWallHeight;
++            float bottomHeight = ramp.lowerHeight - tileOrigin.y;
++            TerraceOutlineChain endChain = new TerraceOutlineChain();
++            endChain.points = new Vector3[endRowCount];
++            endChain.bottomHeights = new float[endRowCount];
++            endChain.startArcPhase = 0f;
++            endChain.outwardNormals = new Vector2[endRowCount];
++            endChain.topRoundMetres = new float[endRowCount];
++            endChain.footOffsetMetres = new float[endRowCount];
++            endChain.footHeights = new float[endRowCount];
++            for (int row = 0; row < endRowCount; row++)
++            {
++                float acrossFraction = (float)row / (endRowCount - 1);
++                Vector2 worldXZ = PointXZ(ramp, forward, right, 1f, acrossFraction);
++                endChain.points[row] = ToTileLocal(worldXZ, ramp.upperHeight, tileOrigin);
++                endChain.bottomHeights[row] = bottomHeight;
++                endChain.outwardNormals[row] = forward;
++                endChain.topRoundMetres[row] = endWallHeight < 0.05f ? 0f : topRound;
++                endChain.footOffsetMetres[row] = topRound + batter + footRound;
++                endChain.footHeights[row] = bottomHeight + 0.03f;
++            }
++
++            chains.Add(endChain);
++        }
++
+         return chains;
+     }
+ 
++    private static bool HasEndWall(in TerraceRampFootprint ramp)
++    {
++        return ramp.kind == TerraceRampKind.AlongCliff;
++    }
++
++    private static int EndWallCellsAcross(in TerraceRampFootprint ramp)
++    {
++        return Mathf.Max(1, Mathf.CeilToInt(ramp.widthMetres * WallRowsPerMetre));
++    }
++
+     private static int WallCellsAlong(in TerraceRampFootprint ramp)
+     {
+         int cellsAlong = Mathf.Max(1, Mathf.CeilToInt(ramp.runMetres));
+diff --git a/Assets/_Scripts/Editor/Terrain/TerrainTileAssets.cs b/Assets/_Scripts/Editor/Terrain/TerrainTileAssets.cs
+index f32042b4d..dfc6d3735 100644
+--- a/Assets/_Scripts/Editor/Terrain/TerrainTileAssets.cs
++++ b/Assets/_Scripts/Editor/Terrain/TerrainTileAssets.cs
+@@ -1,4 +1,5 @@
+ #if UNITY_EDITOR
++using System.Collections.Generic;
+ using System.IO;
+ using Unity.Scenes;
+ using UnityEditor;
+@@ -303,7 +304,44 @@ public static class TerrainTileAssets
+         return AssetDatabase.LoadAssetAtPath<TerrainTileData>(TileDataPath(coordinate));
+     }
+ 
+-    // 51 x 51 R8 texture, pixel (i, j) = terrace level + 3 at corner (i, j) of the 2 m dual grid; the shader decodes it.
++    static List<Vector2[]> BuildRampArtClipQuads()
++    {
++        List<Vector2[]> quads = new List<Vector2[]>();
++        TerraceRamp[] ramps = Object.FindObjectsByType<TerraceRamp>(FindObjectsInactive.Exclude);
++        for (int rampIndex = 0; rampIndex < ramps.Length; rampIndex++)
++        {
++            TerraceRamp ramp = ramps[rampIndex];
++            TerraceRampFootprint footprint = new TerraceRampFootprint(ramp.CentreXZ, ramp.YawDegrees, ramp.widthMetres, ramp.runMetres, 0f, 0f, ramp.kind, ramp.risesToTheRight);
++            Vector2[] fourCorners = new Vector2[4];
++            TerraceRampMeshBuilder.GetWallClipCornersXZ(in footprint, fourCorners);
++            quads.Add(fourCorners);
++        }
++        return quads;
++    }
++
++    static bool IsInsideAnyQuad(Vector2 point, List<Vector2[]> quads)
++    {
++        for (int quadIndex = 0; quadIndex < quads.Count; quadIndex++)
++        {
++            Vector2[] quad = quads[quadIndex];
++            bool anyPositive = false;
++            bool anyNegative = false;
++            for (int edgeIndex = 0; edgeIndex < 4; edgeIndex++)
++            {
++                Vector2 edgeStart = quad[edgeIndex];
++                Vector2 edgeEnd = quad[(edgeIndex + 1) % 4];
++                Vector2 edge = edgeEnd - edgeStart;
++                Vector2 toPoint = point - edgeStart;
++                float cross = edge.x * toPoint.y - edge.y * toPoint.x;
++                if (cross > 1e-4f) anyPositive = true;
++                if (cross < -1e-4f) anyNegative = true;
++            }
++            if (!(anyPositive && anyNegative)) return true;
++        }
++        return false;
++    }
++
++    // 51 x 51 RGBA32 texture, pixel (i, j) at corner (i, j) of the 2 m dual grid: R = terrace level + 3, G = 255 inside a ramp's art-clip quad; the shader decodes it.
+     static void SetTerraceCornerProperties(TerrainTile tile, Material groundMaterial)
+     {
+         Vector2Int coordinate = tile.tileCoordinate;
+@@ -312,11 +350,16 @@ public static class TerrainTileAssets
+ 
+         const int cornersPerSide = 51;
+         int[] cornerLevels = TerraceEdgeTileOutline.BuildCornerLevels(tileData, LoadTileDataForNeighbour);
++        float tileMinX = coordinate.x * TerrainTile.TileSizeMetres - TerrainTile.TileSizeMetres * 0.5f;
++        float tileMinZ = coordinate.y * TerrainTile.TileSizeMetres - TerrainTile.TileSizeMetres * 0.5f;
++        List<Vector2[]> rampQuads = BuildRampArtClipQuads();
+         Color32[] pixels = new Color32[cornerLevels.Length];
+         for (int index = 0; index < cornerLevels.Length; index++)
+         {
+             byte encodedLevel = (byte)Mathf.Clamp(cornerLevels[index] + 3, 0, 6);
+-            pixels[index] = new Color32(encodedLevel, 0, 0, 255);
++            Vector2 cornerPosition = new Vector2(tileMinX + 2f * (index % cornersPerSide), tileMinZ + 2f * (index / cornersPerSide));
++            byte rampMask = IsInsideAnyQuad(cornerPosition, rampQuads) ? (byte)255 : (byte)0;
++            pixels[index] = new Color32(encodedLevel, rampMask, 0, 255);
+         }
+ 
+         string texturePath = TerraceCornerLevelsPath(coordinate);
+@@ -335,14 +378,13 @@ public static class TerrainTileAssets
+             importer.ReadTextureSettings(importerSettings);
+         }
+         if (importer != null && (!existedBefore
+-            || importer.textureType != TextureImporterType.SingleChannel
+-            || importerSettings.singleChannelComponent != TextureImporterSingleChannelComponent.Red))
++            || importer.textureType != TextureImporterType.Default
++            || importer.alphaSource != TextureImporterAlphaSource.None
++            || importer.sRGBTexture))
+         {
+-            importer.textureType = TextureImporterType.SingleChannel;
+-            // Alpha8 (the default single channel) reads 0 from .r in the shader; Red imports as R8.
+-            importer.ReadTextureSettings(importerSettings);
+-            importerSettings.singleChannelComponent = TextureImporterSingleChannelComponent.Red;
+-            importer.SetTextureSettings(importerSettings);
++            // Two channels are used (level in R, ramp mask in G), so Default RGBA32 rather than SingleChannel, which keeps only one.
++            importer.textureType = TextureImporterType.Default;
++            importer.alphaSource = TextureImporterAlphaSource.None;
+             importer.sRGBTexture = false;
+             importer.wrapMode = TextureWrapMode.Clamp;
+             importer.filterMode = FilterMode.Point;
+diff --git a/Assets/_Scripts/Systems/MovementSystemGroup/MovementExecutionSystemGroup/CaravanDriveSystem.cs b/Assets/_Scripts/Systems/MovementSystemGroup/MovementExecutionSystemGroup/CaravanDriveSystem.cs
+index f22400eef..4caa4bd85 100644
+--- a/Assets/_Scripts/Systems/MovementSystemGroup/MovementExecutionSystemGroup/CaravanDriveSystem.cs
++++ b/Assets/_Scripts/Systems/MovementSystemGroup/MovementExecutionSystemGroup/CaravanDriveSystem.cs
+@@ -22,6 +22,8 @@ public partial struct CaravanDriveSystem : ISystem
+     // Anything flatter than this is ground to roll over, not a wall to stop at.
+     private const float WALL_NORMAL_MAX_Y = 0.6f;
+     private const float WALL_STOP_GAP = 0.05f;
++    // Far enough ahead that a 15 degree limit is a measurable rise (0.4 m), short enough to see only the next bit of hill.
++    private const float SLOPE_LOOKAHEAD_METRES = 1.5f;
+     // Long enough that the front probe of a pitched body still finds the ground on a steep descent.
+     private const float GROUND_PROBE_ABOVE = 8f;
+     private const float GROUND_PROBE_BELOW = 14f;
+@@ -154,6 +156,20 @@ public partial struct CaravanDriveSystem : ISystem
+                     stepLength *= math.max(0f, allowedFraction - WALL_STOP_GAP / stepLength);
+                     forwardSpeed = 0f;
+                 }
++                if (stepLength > 0f)
++                {
++                    bool foundGroundHere = TryGroundHeightUnder(collisionWorld, groundFilter, ref groundHits, in loadedTileHeightFields,
++                        position, caravanEntity, driverEntity, out float groundHeightHere);
++                    bool foundGroundAhead = TryGroundHeightUnder(collisionWorld, groundFilter, ref groundHits, in loadedTileHeightFields,
++                        position + travelDirection * SLOPE_LOOKAHEAD_METRES, caravanEntity, driverEntity, out float groundHeightAhead);
++                    if (foundGroundHere && foundGroundAhead && CaravanDriveMath.IsClimbTooSteep(groundHeightHere, groundHeightAhead,
++                            SLOPE_LOOKAHEAD_METRES, CaravanDriveMath.CaravanMaxSlopeDegrees))
++                    {
++                        // Stops as at a wall: no slide, steering still turns the body.
++                        stepLength = 0f;
++                        forwardSpeed = 0f;
++                    }
++                }
+                 position += travelDirection * stepLength;
+             }
+ 
+diff --git a/Assets/_Scripts/Utils/CaravanDriveMath.cs b/Assets/_Scripts/Utils/CaravanDriveMath.cs
+index f16d22ec1..5feef5202 100644
+--- a/Assets/_Scripts/Utils/CaravanDriveMath.cs
++++ b/Assets/_Scripts/Utils/CaravanDriveMath.cs
+@@ -6,6 +6,18 @@ using Unity.Mathematics;
+ // smoothed angle, and the body follows the heading at a capped turn rate. Pure so it can be tested without a World.
+ public static class CaravanDriveMath
+ {
++    // Read by the Editor terrain builder to size hill banks, so it lives here and not in the drive system (HL-D9).
++    public const float CaravanMaxSlopeDegrees = 15f;
++
++    // Only a climb blocks; flat and downhill ground never does.
++    public static bool IsClimbTooSteep(float heightHereMetres, float heightAheadMetres, float lookaheadMetres,
++        float maxSlopeDegrees)
++    {
++        float rise = heightAheadMetres - heightHereMetres;
++        if (rise <= 0f) return false;
++        return rise > math.tan(math.radians(maxSlopeDegrees)) * math.max(lookaheadMetres, 0.0001f);
++    }
++
+     public static float IntegrateSpeed(float currentSpeed, float targetSpeed, float forwardAcceleration,
+         float forwardDeceleration, float deltaTime)
+     {
+diff --git a/Assets/_Scripts/Editor/Terrain/Terraces/TerraceHillBankField.cs b/Assets/_Scripts/Editor/Terrain/Terraces/TerraceHillBankField.cs
+new file mode 100644
+index 00000000..4c4e4925
+--- /dev/null
++++ b/Assets/_Scripts/Editor/Terrain/Terraces/TerraceHillBankField.cs
+@@ -0,0 +1,186 @@
++#if UNITY_EDITOR
++using System;
++using UnityEngine;
++
++// HL-D2 far field: 1 inside a hill step, smoothstep falling to 0 at bankMetres outside the CE-D1 case contour.
++// TerraceCaseContour.SignedDistanceInCell is clamped to +-1 m for seam continuity, so the magnitude is rebuilt here from the analytic pieces.
++public static class TerraceHillBankField
++{
++    private const int TileCells = TerrainTileData.TerraceCellsPerSide;
++    private const int CellsPerSide = 50;
++    private const float CellMetres = 2f;
++
++    // Same layout as TerraceEdgeTileOutline.BuildSignedDistanceFromCaseContour: side = 100 * samplesPerMetre + 1, index z * side + x.
++    public static float[] BuildBankFactor(
++        TerrainTileData data,
++        int threshold,
++        Func<Vector2Int, TerrainTileData> neighbourLookup,
++        int samplesPerMetre,
++        float bankMetres)
++    {
++        int paddingCells = Mathf.CeilToInt(bankMetres / CellMetres) + 1;
++        int reachCells = Mathf.CeilToInt((bankMetres + 1f) / CellMetres);
++        int cellsSide = CellsPerSide + 2 * paddingCells;
++        int cornersSide = cellsSide + 1;
++        int[] cornerLevels = BuildPaddedCornerLevels(data, neighbourLookup, paddingCells);
++
++        // Cell (cellX, cellZ) in tile cell coordinates (may be negative) lives at (cellZ + padding) * cellsSide + cellX + padding.
++        int[] caseIndexPerCell = new int[cellsSide * cellsSide];
++        for (int cellZ = 0; cellZ < cellsSide; cellZ++)
++        {
++            for (int cellX = 0; cellX < cellsSide; cellX++)
++            {
++                caseIndexPerCell[cellZ * cellsSide + cellX] = TerraceCaseContour.CaseFor(
++                    cornerLevels[(cellZ + 1) * cornersSide + cellX],
++                    cornerLevels[(cellZ + 1) * cornersSide + cellX + 1],
++                    cornerLevels[cellZ * cornersSide + cellX + 1],
++                    cornerLevels[cellZ * cornersSide + cellX],
++                    threshold);
++            }
++        }
++
++        int side = TileCells * samplesPerMetre + 1;
++        float[] bankFactor = new float[side * side];
++        for (int sampleZ = 0; sampleZ < side; sampleZ++)
++        {
++            float localZ = sampleZ / (float)samplesPerMetre;
++            int ownCellZ = Math.Min((int)(localZ / CellMetres), CellsPerSide - 1);
++            for (int sampleX = 0; sampleX < side; sampleX++)
++            {
++                float localX = sampleX / (float)samplesPerMetre;
++                int ownCellX = Math.Min((int)(localX / CellMetres), CellsPerSide - 1);
++
++                int ownCase = caseIndexPerCell[(ownCellZ + paddingCells) * cellsSide + ownCellX + paddingCells];
++                float signedDistance = TerraceCaseContour.SignedDistanceInCell(
++                    ownCase, new Vector2(localX - ownCellX * CellMetres, localZ - ownCellZ * CellMetres));
++                if (signedDistance >= 0f)
++                {
++                    bankFactor[sampleZ * side + sampleX] = 1f;
++                    continue;
++                }
++
++                float nearestDistance = float.MaxValue;
++                int firstZ = Math.Max(ownCellZ - reachCells, -paddingCells);
++                int lastZ = Math.Min(ownCellZ + reachCells, CellsPerSide + paddingCells - 1);
++                int firstX = Math.Max(ownCellX - reachCells, -paddingCells);
++                int lastX = Math.Min(ownCellX + reachCells, CellsPerSide + paddingCells - 1);
++                for (int cellZ = firstZ; cellZ <= lastZ; cellZ++)
++                {
++                    for (int cellX = firstX; cellX <= lastX; cellX++)
++                    {
++                        int caseIndex = caseIndexPerCell[(cellZ + paddingCells) * cellsSide + cellX + paddingCells];
++                        if (caseIndex == 0 || caseIndex == 15)
++                        {
++                            continue;
++                        }
++
++                        float distance = DistanceToCasePiece(
++                            caseIndex, new Vector2(localX - cellX * CellMetres, localZ - cellZ * CellMetres));
++                        if (distance < nearestDistance)
++                        {
++                            nearestDistance = distance;
++                        }
++                    }
++                }
++
++                if (nearestDistance >= bankMetres)
++                {
++                    continue;
++                }
++
++                float ramp = Mathf.Clamp01((bankMetres - nearestDistance) / bankMetres);
++                bankFactor[sampleZ * side + sampleX] = ramp * ramp * (3f - 2f * ramp);
++            }
++        }
++
++        return bankFactor;
++    }
++
++    // Cell-local metres 0..2 (the point may lie outside the cell). Corners TL(0,2) TR(2,2) BR(2,0) BL(0,0).
++    public static float DistanceToCasePiece(int caseIndex, Vector2 cellLocalMetres)
++    {
++        switch (caseIndex)
++        {
++            case 3:
++            case 12:
++                return DistanceToSegment(cellLocalMetres, new Vector2(0f, 1f), new Vector2(2f, 1f));
++            case 6:
++            case 9:
++                return DistanceToSegment(cellLocalMetres, new Vector2(1f, 0f), new Vector2(1f, 2f));
++            case 1:
++            case 14:
++                return DistanceToQuarterArc(cellLocalMetres, new Vector2(0f, 2f), 1f, -1f);
++            case 2:
++            case 13:
++                return DistanceToQuarterArc(cellLocalMetres, new Vector2(2f, 2f), -1f, -1f);
++            case 4:
++            case 11:
++                return DistanceToQuarterArc(cellLocalMetres, new Vector2(2f, 0f), -1f, 1f);
++            case 8:
++            case 7:
++                return DistanceToQuarterArc(cellLocalMetres, new Vector2(0f, 0f), 1f, 1f);
++            case 5:
++                return Mathf.Min(
++                    DistanceToQuarterArc(cellLocalMetres, new Vector2(2f, 2f), -1f, -1f),
++                    DistanceToQuarterArc(cellLocalMetres, new Vector2(0f, 0f), 1f, 1f));
++            case 10:
++                return Mathf.Min(
++                    DistanceToQuarterArc(cellLocalMetres, new Vector2(0f, 2f), 1f, -1f),
++                    DistanceToQuarterArc(cellLocalMetres, new Vector2(2f, 0f), -1f, 1f));
++            default:
++                return float.MaxValue;
++        }
++    }
++
++    // The arc spans the quadrant of the corner that faces the cell interior: (towardCellX, towardCellZ) is that quadrant's sign pair.
++    private static float DistanceToQuarterArc(Vector2 point, Vector2 corner, float towardCellX, float towardCellZ)
++    {
++        float radius = TerraceCaseContour.CornerArcRadiusMetres;
++        Vector2 offset = point - corner;
++        if (offset.x * towardCellX >= 0f && offset.y * towardCellZ >= 0f)
++        {
++            return Mathf.Abs(offset.magnitude - radius);
++        }
++
++        Vector2 endpointAlongX = corner + new Vector2(towardCellX * radius, 0f);
++        Vector2 endpointAlongZ = corner + new Vector2(0f, towardCellZ * radius);
++        return Mathf.Min(Vector2.Distance(point, endpointAlongX), Vector2.Distance(point, endpointAlongZ));
++    }
++
++    private static float DistanceToSegment(Vector2 point, Vector2 segmentStart, Vector2 segmentEnd)
++    {
++        Vector2 along = segmentEnd - segmentStart;
++        float fraction = Mathf.Clamp01(Vector2.Dot(point - segmentStart, along) / along.sqrMagnitude);
++        return Vector2.Distance(point, segmentStart + along * fraction);
++    }
++
++    // Corner index i in -padding..50 + padding sits at tile-local metres 2i; stored at i + padding. Rule matches TerraceEdgeTileOutline.BuildCornerLevels.
++    private static int[] BuildPaddedCornerLevels(
++        TerrainTileData data,
++        Func<Vector2Int, TerrainTileData> neighbourLookup,
++        int paddingCorners)
++    {
++        int marginCells = 2 * paddingCorners + 1;
++        int paddedCells = CellsPerSide * 2 + 2 * marginCells;
++        int[] paddedLevels = TerraceLevelField.BuildPaddedLevels(data, marginCells, neighbourLookup);
++        int cornersSide = CellsPerSide + 2 * paddingCorners + 1;
++        int[] cornerLevels = new int[cornersSide * cornersSide];
++        int[] touching = new int[4];
++        for (int storedZ = 0; storedZ < cornersSide; storedZ++)
++        {
++            for (int storedX = 0; storedX < cornersSide; storedX++)
++            {
++                int firstCellX = 2 * (storedX - paddingCorners) - 1 + marginCells;
++                int firstCellZ = 2 * (storedZ - paddingCorners) - 1 + marginCells;
++                touching[0] = paddedLevels[firstCellZ * paddedCells + firstCellX];
++                touching[1] = paddedLevels[firstCellZ * paddedCells + firstCellX + 1];
++                touching[2] = paddedLevels[(firstCellZ + 1) * paddedCells + firstCellX];
++                touching[3] = paddedLevels[(firstCellZ + 1) * paddedCells + firstCellX + 1];
++                cornerLevels[storedZ * cornersSide + storedX] = TerraceEdgeTileOutline.MajorityTiesHigher(touching);
++            }
++        }
++
++        return cornerLevels;
++    }
++}
++#endif
+diff --git a/Assets/_Scripts/Tests/Terrain/TerraceHillBankFieldTests.cs b/Assets/_Scripts/Tests/Terrain/TerraceHillBankFieldTests.cs
+new file mode 100644
+index 00000000..7eed67c3
+--- /dev/null
++++ b/Assets/_Scripts/Tests/Terrain/TerraceHillBankFieldTests.cs
+@@ -0,0 +1,133 @@
++using System.Collections.Generic;
++using NUnit.Framework;
++using UnityEngine;
++
++namespace StitchPunk.Tests
++{
++    public class TerraceHillBankFieldTests
++    {
++        private const int SamplesPerMetre = 4;
++        private const int SampleSide = 100 * SamplesPerMetre + 1;
++        private const float BankMetres = 8f;
++
++        private readonly List<TerrainTileData> tilesToDestroy = new List<TerrainTileData>();
++
++        [TearDown]
++        public void DestroyTiles()
++        {
++            foreach (TerrainTileData tile in tilesToDestroy)
++            {
++                Object.DestroyImmediate(tile);
++            }
++            tilesToDestroy.Clear();
++        }
++
++        private TerrainTileData BuildTile(Vector2Int coordinate, int firstRaisedCellX)
++        {
++            TerrainTileData tile = ScriptableObject.CreateInstance<TerrainTileData>();
++            tile.coordinate = coordinate;
++            int cellsPerSide = TerrainTileData.TerraceCellsPerSide;
++            byte[] levels = new byte[cellsPerSide * cellsPerSide];
++            for (int cellZ = 0; cellZ < cellsPerSide; cellZ++)
++            {
++                for (int cellX = 0; cellX < cellsPerSide; cellX++)
++                {
++                    int level = cellX >= firstRaisedCellX ? 1 : 0;
++                    levels[cellZ * cellsPerSide + cellX] = (byte)(level + TerrainTileData.TerraceLevelBias);
++                }
++            }
++            tile.baseTerraceLevels = levels;
++            tilesToDestroy.Add(tile);
++            return tile;
++        }
++
++        private float[] BuildField(TerrainTileData tile, TerrainTileData other)
++        {
++            return TerraceHillBankField.BuildBankFactor(
++                tile, 1,
++                (Vector2Int coordinate) => coordinate == other.coordinate ? other : null,
++                SamplesPerMetre, BankMetres);
++        }
++
++        private static float SampleAt(float[] field, float localXMetres, float localZMetres)
++        {
++            int sampleX = Mathf.RoundToInt(localXMetres * SamplesPerMetre);
++            int sampleZ = Mathf.RoundToInt(localZMetres * SamplesPerMetre);
++            return field[sampleZ * SampleSide + sampleX];
++        }
++
++        [Test]
++        public void DistanceToCasePieceMatchesTheAnalyticCurve()
++        {
++            Assert.AreEqual(0.7f, TerraceHillBankField.DistanceToCasePiece(3, new Vector2(0.5f, 1.7f)), 1e-4f);
++            Assert.AreEqual(Mathf.Sqrt(2f) - 1f, TerraceHillBankField.DistanceToCasePiece(1, new Vector2(1f, 1f)), 1e-4f);
++            // (2,0) is 45 degrees below the arc centre (0,2), inside the quarter, so the radial distance applies.
++            Assert.AreEqual(Mathf.Sqrt(8f) - 1f, TerraceHillBankField.DistanceToCasePiece(1, new Vector2(2f, 0f)), 1e-4f);
++            // (0.5,2.5) lies at 45 degrees above the centre, outside the quarter; nearest piece point is the endpoint (1,2).
++            Assert.AreEqual(Mathf.Sqrt(0.5f), TerraceHillBankField.DistanceToCasePiece(1, new Vector2(0.5f, 2.5f)), 1e-4f);
++        }
++
++        [Test]
++        public void BankFallsFromOneToZeroAcrossTheBankAndAgreesAtTheSeam()
++        {
++            TerrainTileData tileA = BuildTile(new Vector2Int(0, 0), 0);
++            TerrainTileData tileAWithRaisedEdge = BuildTile(new Vector2Int(0, 0), 0);
++            TerrainTileData tileB = BuildTile(new Vector2Int(1, 0), 1000);
++
++            // Plateau occupies cells x < 40: raise x < 40 by building inverted levels.
++            int cellsPerSide = TerrainTileData.TerraceCellsPerSide;
++            for (int cellZ = 0; cellZ < cellsPerSide; cellZ++)
++            {
++                for (int cellX = 0; cellX < cellsPerSide; cellX++)
++                {
++                    int level = cellX < 40 ? 1 : 0;
++                    tileA.baseTerraceLevels[cellZ * cellsPerSide + cellX] = (byte)(level + TerrainTileData.TerraceLevelBias);
++                }
++            }
++
++            float[] field = BuildField(tileA, tileB);
++            float zMetres = 50f;
++            Assert.AreEqual(1f, SampleAt(field, 20f, zMetres), 1e-4f);
++            float outsideValue = SampleAt(field, 45f, zMetres);
++            Assert.Greater(outsideValue, 0f);
++            Assert.Less(outsideValue, 1f);
++            Assert.AreEqual(0f, SampleAt(field, 60f, zMetres), 1e-4f);
++
++            float previousValue = SampleAt(field, 40f, zMetres);
++            for (float xMetres = 40.25f; xMetres <= 50f; xMetres += 0.25f)
++            {
++                float value = SampleAt(field, xMetres, zMetres);
++                Assert.LessOrEqual(value, previousValue + 1e-5f, "not monotonic at x=" + xMetres);
++                previousValue = value;
++            }
++
++            // Seam: plateau touching the east edge of tile A.
++            TerrainTileData seamTileA = tileAWithRaisedEdge;
++            tileAWithRaisedEdge.coordinate = new Vector2Int(0, 0);
++            for (int cellZ = 0; cellZ < cellsPerSide; cellZ++)
++            {
++                for (int cellX = 0; cellX < cellsPerSide; cellX++)
++                {
++                    int level = cellX >= 96 ? 1 : 0;
++                    seamTileA.baseTerraceLevels[cellZ * cellsPerSide + cellX] = (byte)(level + TerrainTileData.TerraceLevelBias);
++                }
++            }
++
++            float[] fieldA = BuildField(seamTileA, tileB);
++            float[] fieldB = TerraceHillBankField.BuildBankFactor(
++                tileB, 1,
++                (Vector2Int coordinate) => coordinate == seamTileA.coordinate ? seamTileA : null,
++                SamplesPerMetre, BankMetres);
++
++            for (int sampleZ = 0; sampleZ < SampleSide; sampleZ++)
++            {
++                Assert.AreEqual(fieldA[sampleZ * SampleSide + (SampleSide - 1)], fieldB[sampleZ * SampleSide], 1e-4f,
++                    "seam mismatch at sample z " + sampleZ);
++            }
++
++            float nearSeamValue = SampleAt(fieldB, 4f, 50f);
++            Assert.Greater(nearSeamValue, 0f);
++            Assert.Less(nearSeamValue, 1f);
++        }
++    }
++}

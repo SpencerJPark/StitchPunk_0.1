@@ -6,6 +6,18 @@ using Unity.Mathematics;
 // smoothed angle, and the body follows the heading at a capped turn rate. Pure so it can be tested without a World.
 public static class CaravanDriveMath
 {
+    // Read by the Editor terrain builder to size hill banks, so it lives here and not in the drive system (HL-D9).
+    public const float CaravanMaxSlopeDegrees = 15f;
+
+    // Only a climb blocks; flat and downhill ground never does.
+    public static bool IsClimbTooSteep(float heightHereMetres, float heightAheadMetres, float lookaheadMetres,
+        float maxSlopeDegrees)
+    {
+        float rise = heightAheadMetres - heightHereMetres;
+        if (rise <= 0f) return false;
+        return rise > math.tan(math.radians(maxSlopeDegrees)) * math.max(lookaheadMetres, 0.0001f);
+    }
+
     public static float IntegrateSpeed(float currentSpeed, float targetSpeed, float forwardAcceleration,
         float forwardDeceleration, float deltaTime)
     {

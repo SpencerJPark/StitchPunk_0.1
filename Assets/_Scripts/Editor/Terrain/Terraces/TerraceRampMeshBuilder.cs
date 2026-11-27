@@ -107,7 +107,9 @@ public static class TerraceRampMeshBuilder
         int wallCellsAlong = WallCellsAlong(ramp);
         int wallRowCount = wallCellsAlong + 1;
         int wallSideCount = (HasSideWall(ramp, false) ? 1 : 0) + (HasSideWall(ramp, true) ? 1 : 0);
-        int vertexCount = surfaceVertexCount + wallSideCount * VerticesPerWallRow * wallRowCount;
+        int endWallRowCount = HasEndWall(ramp) ? EndWallCellsAcross(ramp) + 1 : 0;
+        int sideWallVertexCount = wallSideCount * VerticesPerWallRow * wallRowCount;
+        int vertexCount = surfaceVertexCount + sideWallVertexCount + endWallRowCount * VerticesPerWallRow;
 
         Vector2 forward = ForwardXZ(ramp.yawDegrees);
         Vector2 right = RightXZ(ramp.yawDegrees);
@@ -232,6 +234,68 @@ public static class TerraceRampMeshBuilder
             }
         }
 
+        if (endWallRowCount > 0)
+        {
+            int endWallCells = endWallRowCount - 1;
+            int endWallBase = surfaceVertexCount + sideWallVertexCount;
+            float endWallHeight = ramp.upperHeight - ramp.lowerHeight;
+            float topRound = Mathf.Min(topRoundMetres, 0.3f * endWallHeight);
+            float footRound = Mathf.Min(footRoundMetres, 0.3f * endWallHeight);
+            float batter = 0.08f * endWallHeight;
+            float faceRun = Mathf.Max(0f, endWallHeight - footRound - topRound);
+            float topGrassEndArc = topRound * Mathf.PI * 0.5f;
+            float faceLength = Mathf.Sqrt(batter * batter + faceRun * faceRun);
+            float footGrassStartArc = topGrassEndArc + faceLength;
+            float faceNormalOut = faceLength > 1e-6f ? faceRun / faceLength : 1f;
+            float faceNormalUp = faceLength > 1e-6f ? batter / faceLength : 0f;
+            for (int row = 0; row < endWallRowCount; row++)
+            {
+                float acrossFraction = (float)row / endWallCells;
+                Vector2 worldXZ = PointXZ(ramp, forward, right, 1f, acrossFraction);
+                float acrossMetres = acrossFraction * ramp.widthMetres;
+                int rowBase = endWallBase + row * VerticesPerWallRow;
+                for (int step = 0; step <= FilletSteps; step++)
+                {
+                    float angle = (float)step / FilletSteps * Mathf.PI * 0.5f;
+                    WriteWallVertex(positions, normals, uvs, rowBase + step, worldXZ, ramp.upperHeight, tileOrigin, forward,
+                        topRound * angle, topRound * Mathf.Sin(angle), topRound * (1f - Mathf.Cos(angle)),
+                        Mathf.Sin(angle), Mathf.Cos(angle), acrossMetres, topGrassEndArc, footGrassStartArc);
+                }
+
+                WriteWallVertex(positions, normals, uvs, rowBase + FilletSteps + 1, worldXZ, ramp.upperHeight, tileOrigin, forward,
+                    topGrassEndArc, topRound, topRound, faceNormalOut, faceNormalUp, acrossMetres, topGrassEndArc, footGrassStartArc);
+                WriteWallVertex(positions, normals, uvs, rowBase + FilletSteps + 2, worldXZ, ramp.upperHeight, tileOrigin, forward,
+                    footGrassStartArc, topRound + batter, endWallHeight - footRound, faceNormalOut, faceNormalUp,
+                    acrossMetres, topGrassEndArc, footGrassStartArc);
+                for (int step = 0; step <= FilletSteps; step++)
+                {
+                    float angle = (float)step / FilletSteps * Mathf.PI * 0.5f;
+                    WriteWallVertex(positions, normals, uvs, rowBase + FilletSteps + 3 + step, worldXZ, ramp.upperHeight, tileOrigin, forward,
+                        footGrassStartArc + footRound * angle,
+                        topRound + batter + footRound * (1f - Mathf.Cos(angle)),
+                        endWallHeight - footRound + footRound * Mathf.Sin(angle),
+                        Mathf.Cos(angle), Mathf.Sin(angle), acrossMetres, topGrassEndArc, footGrassStartArc);
+                }
+            }
+
+            if (endWallHeight >= 0.01f)
+            {
+                for (int row = 0; row < endWallCells; row++)
+                {
+                    for (int group = 0; group < 3; group++)
+                    {
+                        for (int step = 0; step < groupRowCounts[group] - 1; step++)
+                        {
+                            int nearUpper = endWallBase + row * VerticesPerWallRow + groupStarts[group] + step;
+                            int farUpper = nearUpper + VerticesPerWallRow;
+                            AddOrientedTriangle(wallTriangles, positions, normals, nearUpper, farUpper, nearUpper + 1);
+                            AddOrientedTriangle(wallTriangles, positions, normals, farUpper, farUpper + 1, nearUpper + 1);
+                        }
+                    }
+                }
+            }
+        }
+
         Mesh mesh = new Mesh();
         mesh.name = "TerraceRamp";
         mesh.indexFormat = vertexCount <= 65535 ? IndexFormat.UInt16 : IndexFormat.UInt32;
@@ -295,7 +359,48 @@ public static class TerraceRampMeshBuilder
             chains.Add(chain);
         }
 
+        if (HasEndWall(ramp))
+        {
+            int endRowCount = EndWallCellsAcross(ramp) + 1;
+            float endWallHeight = ramp.upperHeight - ramp.lowerHeight;
+            float topRound = Mathf.Min(topRoundMetres, 0.3f * endWallHeight);
+            float footRound = Mathf.Min(footRoundMetres, 0.3f * endWallHeight);
+            float batter = 0.08f * endWallHeight;
+            float bottomHeight = ramp.lowerHeight - tileOrigin.y;
+            TerraceOutlineChain endChain = new TerraceOutlineChain();
+            endChain.points = new Vector3[endRowCount];
+            endChain.bottomHeights = new float[endRowCount];
+            endChain.startArcPhase = 0f;
+            endChain.outwardNormals = new Vector2[endRowCount];
+            endChain.topRoundMetres = new float[endRowCount];
+            endChain.footOffsetMetres = new float[endRowCount];
+            endChain.footHeights = new float[endRowCount];
+            for (int row = 0; row < endRowCount; row++)
+            {
+                float acrossFraction = (float)row / (endRowCount - 1);
+                Vector2 worldXZ = PointXZ(ramp, forward, right, 1f, acrossFraction);
+                endChain.points[row] = ToTileLocal(worldXZ, ramp.upperHeight, tileOrigin);
+                endChain.bottomHeights[row] = bottomHeight;
+                endChain.outwardNormals[row] = forward;
+                endChain.topRoundMetres[row] = endWallHeight < 0.05f ? 0f : topRound;
+                endChain.footOffsetMetres[row] = topRound + batter + footRound;
+                endChain.footHeights[row] = bottomHeight + 0.03f;
+            }
+
+            chains.Add(endChain);
+        }
+
         return chains;
+    }
+
+    private static bool HasEndWall(in TerraceRampFootprint ramp)
+    {
+        return ramp.kind == TerraceRampKind.AlongCliff;
+    }
+
+    private static int EndWallCellsAcross(in TerraceRampFootprint ramp)
+    {
+        return Mathf.Max(1, Mathf.CeilToInt(ramp.widthMetres * WallRowsPerMetre));
     }
 
     private static int WallCellsAlong(in TerraceRampFootprint ramp)
