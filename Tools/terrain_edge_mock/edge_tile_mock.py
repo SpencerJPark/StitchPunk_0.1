@@ -10,6 +10,7 @@ Usage: python Tools/terrain_edge_mock/edge_tile_mock.py <capture_dir> <example_s
 Only numpy + Pillow. Nothing here is read by Unity.
 """
 import math
+import os
 import sys
 import zlib
 from collections import deque
@@ -1051,7 +1052,258 @@ def annotate_cliff(image, is_wall, height_above_ground, top_surface, body_s, wal
     panel.save("%s/10_cliff_profile_labelled.png" % capture_dir)
 
 
+# ---------------------------------------------------------------------------------------------------------
+# --cliff-edges: plateau rim/foot art on a 2 m corner grid, in plan and in a gameplay-angle heightfield view.
+# Contour, profile and atlas layout mirror what the game will do (decisions CE-D1, CE-D2, CE-D5).
+# ---------------------------------------------------------------------------------------------------------
+CLIFF_WIDTH_METRES = 20
+CLIFF_HEIGHT_METRES = 14
+GRID_CELL_METRES = 2.0
+CONTOUR_RADIUS = 1.0
+TOP_BEVEL_END = 0.45
+FACE_END = 0.48
+FOOT_BEVEL_END = 0.90
+PLATEAU_HEIGHT = 3.0
+TOP_BEVEL_DROP = 0.45
+FOOT_BEVEL_RISE = 0.42
+CAMERA_PITCH_DEGREES = 50.0
+ATLAS_CELL_PIXELS = 128
+ATLAS_DIRECTORY = "Assets/PaintedGround/Textures/EdgeTiles"
+RIM_ROCK_COLOUR = np.array([166, 150, 126]) / 255.0
+FOOT_ROCK_COLOUR = np.array([88, 77, 66]) / 255.0
+ATLAS_FALLBACK_NAMES = {GRASS: "GrassOverDirt", FOREST: "ForestOverGrass", DIRT: "GrassOverDirt", STONE: "StoneOverDirt"}
+_ATLAS_CACHE = {}
+
+
+def case_contour_signed_distance(case_index, local_x, local_z):
+    """Positive inside the plateau. Cell-local metres 0..2; corners TL=(0,2) TR=(2,2) BR=(2,0) BL=(0,0)."""
+    radius = CONTOUR_RADIUS
+
+    def distance_to(corner_x, corner_z):
+        return np.hypot(local_x - corner_x, local_z - corner_z)
+
+    top_left, top_right, bottom_right, bottom_left = (0.0, 2.0), (2.0, 2.0), (2.0, 0.0), (0.0, 0.0)
+    case_index = np.asarray(case_index)
+    conditions = [case_index == value for value in range(16)]
+    results = [
+        -radius + 0 * local_x,
+        radius - distance_to(*top_left),
+        radius - distance_to(*top_right),
+        local_z - 1.0,
+        radius - distance_to(*bottom_right),
+        np.minimum(distance_to(*top_right), distance_to(*bottom_left)) - radius,
+        local_x - 1.0,
+        distance_to(*bottom_left) - radius,
+        radius - distance_to(*bottom_left),
+        1.0 - local_x,
+        np.minimum(distance_to(*top_left), distance_to(*bottom_right)) - radius,
+        distance_to(*bottom_right) - radius,
+        1.0 - local_z,
+        distance_to(*top_right) - radius,
+        distance_to(*top_left) - radius,
+        radius + 0 * local_x,
+    ]
+    return np.clip(np.select(conditions, results), -radius, radius)
+
+
+def sample_corner_grid(corner_levels, world_x, world_z):
+    cells_z, cells_x = corner_levels.shape[0] - 1, corner_levels.shape[1] - 1
+    cell_x = np.clip(np.floor(world_x / GRID_CELL_METRES).astype(np.int64), 0, cells_x - 1)
+    cell_z = np.clip(np.floor(world_z / GRID_CELL_METRES).astype(np.int64), 0, cells_z - 1)
+    case_index = (corner_levels[cell_z + 1, cell_x] * 1 + corner_levels[cell_z + 1, cell_x + 1] * 2
+                  + corner_levels[cell_z, cell_x + 1] * 4 + corner_levels[cell_z, cell_x] * 8)
+    return cell_x, cell_z, case_index, world_x - cell_x * GRID_CELL_METRES, world_z - cell_z * GRID_CELL_METRES
+
+
+def load_edge_atlas(biome, set_kind):
+    key = (biome, set_kind)
+    if key not in _ATLAS_CACHE:
+        path = "%s/T_EdgeAtlas_%s%s.png" % (ATLAS_DIRECTORY, BIOME_NAMES[biome], set_kind)
+        if not os.path.exists(path):
+            path = "%s/T_EdgeAtlas_%s.png" % (ATLAS_DIRECTORY, ATLAS_FALLBACK_NAMES[biome])
+            print("WARNING: no %s%s atlas, falling back to %s" % (BIOME_NAMES[biome], set_kind, path))
+        else:
+            print("using atlas", path)
+        _ATLAS_CACHE[key] = np.asarray(Image.open(path).convert("RGBA")).astype(np.float32) / 255.0
+    return _ATLAS_CACHE[key]
+
+
+def weighted_atlas_sample(biome_weights, set_kind, seed_offset, cell_x, cell_z, case_index, local_x, local_z):
+    coverage = np.zeros(case_index.shape)
+    ink = np.zeros(case_index.shape)
+    for biome, weight in biome_weights:
+        atlas = load_edge_atlas(biome, set_kind)
+        variant = variant_for(cell_z, cell_x, biome + seed_offset, 2)
+        atlas_row = (case_index // 8 + 2 * variant) * ATLAS_CELL_PIXELS + np.clip(((1.0 - local_z / GRID_CELL_METRES) * ATLAS_CELL_PIXELS).astype(np.int64), 0, ATLAS_CELL_PIXELS - 1)
+        atlas_column = (case_index % 8) * ATLAS_CELL_PIXELS + np.clip((local_x / GRID_CELL_METRES * ATLAS_CELL_PIXELS).astype(np.int64), 0, ATLAS_CELL_PIXELS - 1)
+        texels = atlas[atlas_row, atlas_column]
+        coverage += weight * texels[..., 0]
+        ink += weight * texels[..., 2]
+    return coverage, ink
+
+
+def weighted_fill(biome_weights, height, width, seed_base):
+    fill = np.zeros((height, width, 3))
+    for biome, weight in biome_weights:
+        fill += weight[..., None] * make_fill(biome, height, width, seed_base + biome)
+    return fill
+
+
+def cliff_profile_height(outward_distance):
+    # Cosine rounding, not a circle arc: a circle is vertical at its end, which smears one plan row over dozens of screen rows.
+    top_t = np.clip(outward_distance / TOP_BEVEL_END, 0.0, 1.0)
+    top_height = PLATEAU_HEIGHT - TOP_BEVEL_DROP * (1.0 - np.cos(top_t * math.pi / 2.0))
+    face_t = np.clip((outward_distance - TOP_BEVEL_END) / (FACE_END - TOP_BEVEL_END), 0.0, 1.0)
+    face_height = (PLATEAU_HEIGHT - TOP_BEVEL_DROP) + face_t * (FOOT_BEVEL_RISE - (PLATEAU_HEIGHT - TOP_BEVEL_DROP))
+    foot_u = np.clip((FOOT_BEVEL_END - outward_distance) / (FOOT_BEVEL_END - FACE_END), 0.0, 1.0)
+    foot_height = FOOT_BEVEL_RISE * (1.0 - np.cos(foot_u * math.pi / 2.0))
+    return np.where(outward_distance <= TOP_BEVEL_END, top_height, np.where(outward_distance < FACE_END, face_height, foot_height))
+
+
+def render_cliff_plan(corner_levels, top_weights, lower_weights):
+    ppm = PIXELS_PER_METRE
+    height_px, width_px = CLIFF_HEIGHT_METRES * ppm, CLIFF_WIDTH_METRES * ppm
+    rows, columns = np.mgrid[0:height_px, 0:width_px]
+    world_x = (columns + 0.5) / ppm
+    world_z = CLIFF_HEIGHT_METRES - (rows + 0.5) / ppm
+    cell_x, cell_z, case_index, local_x, local_z = sample_corner_grid(corner_levels, world_x, world_z)
+    signed_distance = case_contour_signed_distance(case_index, local_x, local_z)
+    outward = -signed_distance
+
+    top_fill = weighted_fill(top_weights, height_px, width_px, 300)
+    lower_fill = weighted_fill(lower_weights, height_px, width_px, 400)
+    rim_coverage, rim_ink = weighted_atlas_sample(top_weights, "Rim", 100, cell_x, cell_z, case_index, local_x, local_z)
+    foot_coverage, foot_ink = weighted_atlas_sample(lower_weights, "Foot", 200, cell_x, cell_z, 15 - case_index, local_x, local_z)
+
+    # Fine, low-amplitude grain: broad noise gets stretched vertically by the gameplay projection and reads as a blur.
+    rock_noise = (0.97 + 0.06 * value_noise(height_px, width_px, 6, 77))[..., None]
+    top_t = np.clip(outward / TOP_BEVEL_END, 0.0, 1.0)[..., None]
+    rim_rock = RIM_ROCK_COLOUR * (1.12 - 0.42 * top_t ** 2) * rock_noise
+    foot_u = np.clip((FOOT_BEVEL_END - outward) / (FOOT_BEVEL_END - FACE_END), 0.0, 1.0)[..., None]
+    foot_rock = FOOT_ROCK_COLOUR * (0.62 + 0.30 * (1.0 - foot_u)) * rock_noise
+    shadow = (1.0 - 0.30 * np.exp(-np.maximum(outward - FOOT_BEVEL_END, 0.0) / 0.7))[..., None]
+
+    ink_colour = np.array(INK) / 255.0
+    rim_zone = outward <= TOP_BEVEL_END
+    face_zone = (outward > TOP_BEVEL_END) & (outward < FACE_END)
+    foot_zone = outward >= FACE_END
+    rim_colour = np.where((rim_coverage > 0.5)[..., None], top_fill, rim_rock)
+    rim_colour = rim_colour * (1 - np.clip(rim_ink, 0, 1)[..., None]) + ink_colour * np.clip(rim_ink, 0, 1)[..., None]
+    foot_colour = np.where((foot_coverage > 0.5)[..., None], lower_fill * shadow, foot_rock)
+    foot_colour = foot_colour * (1 - np.clip(foot_ink, 0, 1)[..., None]) + ink_colour * np.clip(foot_ink, 0, 1)[..., None]
+    plan = np.where(rim_zone[..., None], rim_colour, foot_colour)
+    plan = np.where(face_zone[..., None], ink_colour * 0.5 + FOOT_ROCK_COLOUR * 0.5, plan)
+    return plan, outward, face_zone
+
+
+def render_gameplay_view(plan, outward, face_zone, rock_seed):
+    ppm = PIXELS_PER_METRE
+    pitch = math.radians(CAMERA_PITCH_DEGREES)
+    ground_scale, height_scale = math.sin(pitch) * ppm, math.cos(pitch) * ppm
+    plan_height, plan_width = outward.shape
+    base_row = CLIFF_HEIGHT_METRES * ground_scale + PLATEAU_HEIGHT * height_scale + 1.0
+    screen_height = int(base_row) + 2
+    heights = cliff_profile_height(outward)
+    wall_top = PLATEAU_HEIGHT - TOP_BEVEL_DROP
+    wall_pixels = int(round((wall_top - FOOT_BEVEL_RISE) * height_scale))
+    rock, rock_ink, _ = rock_face_colour(plan_width, wall_pixels, 0, rock_seed)
+    ink_colour = np.array(INK) / 255.0
+
+    screen = np.zeros((screen_height, plan_width, 3))
+    screen[:] = np.array([0.12, 0.12, 0.12])
+    lowest_drawn_row = np.full(plan_width, screen_height, dtype=np.int64)
+    previous_height = np.zeros(plan_width)
+    column_index = np.arange(plan_width)
+    for plan_row in range(plan_height - 1, -1, -1):
+        world_z = CLIFF_HEIGHT_METRES - (plan_row + 0.5) / ppm
+        row_heights = heights[plan_row]
+        screen_rows = np.floor(base_row - world_z * ground_scale - row_heights * height_scale + 0.5).astype(np.int64)
+        visible = screen_rows < lowest_drawn_row
+        if not visible.any():
+            continue
+        gap = lowest_drawn_row - screen_rows
+        for step in range(int(gap[visible].max())):
+            active = visible & (gap > step)
+            target_rows = lowest_drawn_row[active] - 1 - step
+            columns = column_index[active]
+            colour = plan[plan_row, active]
+            # Wall-ness comes from the interpolated height, not the plan row: the wall spans only two plan rows,
+            # so the rows it leaves in the gap would otherwise take a bevel or foot colour and smear.
+            blend = (lowest_drawn_row[active] - target_rows) / np.maximum(gap[active], 1)
+            height_here = previous_height[active] + blend * (row_heights[active] - previous_height[active])
+            face_active = (height_here < wall_top - 1e-3) & (height_here > FOOT_BEVEL_RISE + 1e-3)
+            if face_active.any():
+                wall_fraction = np.clip((wall_top - height_here) / (wall_top - FOOT_BEVEL_RISE), 0.0, 1.0)
+                texture_row = np.clip((wall_fraction * wall_pixels).astype(np.int64), 0, wall_pixels)
+                face_colour = rock[texture_row, columns] * (1.0 - 0.22 * wall_fraction)[:, None]
+                seam = rock_ink[texture_row, columns][:, None]
+                face_colour = face_colour * (1 - seam) + ink_colour * seam
+                colour = np.where(face_active[:, None], face_colour, colour)
+            screen[target_rows, columns] = colour
+        lowest_drawn_row[visible] = screen_rows[visible]
+        previous_height[visible] = row_heights[visible]
+    return screen[int(lowest_drawn_row.max()):]
+
+
+def draw_plan_grid(plan):
+    gridded = plan.copy()
+    spacing = int(GRID_CELL_METRES * PIXELS_PER_METRE)
+    gridded[::spacing, :] = gridded[::spacing, :] * 0.75 + 0.25
+    gridded[:, ::spacing] = gridded[:, ::spacing] * 0.75 + 0.25
+    return gridded
+
+
+def build_corner_levels(predicate):
+    cells_x, cells_z = int(CLIFF_WIDTH_METRES / GRID_CELL_METRES), int(CLIFF_HEIGHT_METRES / GRID_CELL_METRES)
+    corner_z, corner_x = np.mgrid[0:cells_z + 1, 0:cells_x + 1]
+    return predicate(corner_x, corner_z).astype(np.int64)
+
+
+def save_cliff_capture(path, corner_levels, top_weights, lower_weights, caption):
+    plan, outward, face_zone = render_cliff_plan(corner_levels, top_weights, lower_weights)
+    gameplay = render_gameplay_view(plan, outward, face_zone, 11)
+    plan_image = to_image(draw_plan_grid(plan))
+    gameplay_image = to_image(gameplay)
+    margin = 28
+    canvas = Image.new("RGB", (plan_image.width + gameplay_image.width + 12, max(plan_image.height, gameplay_image.height) + margin), (28, 28, 30))
+    canvas.paste(plan_image, (0, margin))
+    canvas.paste(gameplay_image, (plan_image.width + 12, margin))
+    draw = ImageDraw.Draw(canvas)
+    draw.text((8, 8), "%s - plan view (2 m grid)" % caption, fill=(230, 230, 230))
+    draw.text((plan_image.width + 20, 8), "gameplay angle (%d deg pitch)" % CAMERA_PITCH_DEGREES, fill=(230, 230, 230))
+    canvas.save(path)
+    print("wrote", path)
+
+
+def cliff_edges_main(capture_dir):
+    os.makedirs(capture_dir, exist_ok=True)
+    ones = np.ones((CLIFF_HEIGHT_METRES * PIXELS_PER_METRE, CLIFF_WIDTH_METRES * PIXELS_PER_METRE))
+    grass_only, grass_lower = [(GRASS, ones)], [(GRASS, ones)]
+
+    straight = build_corner_levels(lambda corner_x, corner_z: corner_z >= 4)
+    save_cliff_capture("%s/01_straight_rim.png" % capture_dir, straight, grass_only, grass_lower, "01 straight rim")
+
+    notched = build_corner_levels(lambda corner_x, corner_z: (corner_x >= 2) & (corner_z >= 2) & ~((corner_x >= 6) & (corner_z <= 3)))
+    save_cliff_capture("%s/02_outer_and_inner_corner.png" % capture_dir, notched, grass_only, grass_lower, "02 outer + inner corner")
+
+    staircase = build_corner_levels(lambda corner_x, corner_z: (corner_x + corner_z >= 7) & (corner_z >= 1))
+    save_cliff_capture("%s/03_staircase_45deg.png" % capture_dir, staircase, grass_only, grass_lower, "03 45 degree staircase")
+
+    plan_height, plan_width = ones.shape
+    rows, columns = np.mgrid[0:plan_height, 0:plan_width]
+    world_x = (columns + 0.5) / PIXELS_PER_METRE
+    world_z = CLIFF_HEIGHT_METRES - (rows + 0.5) / PIXELS_PER_METRE
+    border_x = 10.0 + 0.35 * np.sin(world_z * 1.1)
+    forest_weight = np.clip((world_x - border_x + 0.3) / 0.6, 0.0, 1.0)
+    forest_weight = forest_weight * forest_weight * (3 - 2 * forest_weight)
+    junction = [(GRASS, 1.0 - forest_weight), (FOREST, forest_weight)]
+    save_cliff_capture("%s/04_grass_forest_junction.png" % capture_dir, straight, junction, junction, "04 grass/forest junction")
+
+
 def main():
+    if len(sys.argv) >= 3 and sys.argv[1] == "--cliff-edges":
+        cliff_edges_main(sys.argv[2])
+        return
     capture_dir = sys.argv[1]
     example_dir = sys.argv[2]
     packed_sets = {}

@@ -1,5 +1,5 @@
 ---
-status: SPEC 2026-11-27, not started. Replaces TerrainEdgeTiles_System.md section 8.1 PT2 (outline from the art) and finishes PT3 (rim/foot ink).
+status: BUILDING 2026-11-27, wave 1 done. Replaces TerrainEdgeTiles_System.md section 8.1 PT2 (outline from the art) and finishes PT3 (rim/foot ink).
 parent: Tasks/Plans/TerrainEdgeTiles_System.md (16-case dual grid, 2 m cells), Tasks/Plans/Terraces_System.md (levels, ramps, walls)
 references: Tasks/Captures/References/4_dse_wendywillowforestfire_a.png, 3_dse_04_wilsongettingknockedoffcliff.png, edgesSample.png;
             Tasks/Captures/EdgeTiles_2026-11-25/10_cliff_profile_labelled.png (the target profile)
@@ -332,3 +332,4 @@ Acceptance:
 - 2026-11-27 Owner added hills, ramp kinds and multiple ramps (section 8); drapes asked for then removed; hill height unsure (HL-Q1 compares by capture); caravan only climbs gentle slopes (HL-D9); observer protocol added (section 4).
 - 2026-11-27 Spec written after the PT3 session stalled. Diagnosis in section 1. Uncommitted work from that session
   (edge atlas PNGs staged, RandomWorld tiles modified) was left as is.
+- 2026-11-27 Wave 1: C1 case contour + fixture (proved to fail without the +-1 m clamp; Editor asmdef now refs Utils); C3a 8 Rim/Foot sets by analytic-normal transfer (rim crossings exact, foot single-corner cases 1/2/4/8 cross ~0.12 m short, fix rides wave 2); C0 mock captures 01-04 in Captures/CliffEdges_2026-11-27 posted to owner, judged: rounded outline, lip over light rim, foot lapping, junction clean.

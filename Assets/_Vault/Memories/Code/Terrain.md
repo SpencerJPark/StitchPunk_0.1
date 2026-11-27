@@ -104,6 +104,12 @@ tile transitions (grid-snapped marching squares off the same SDF corners). See `
 `Tasks/Plans/TerrainEdgeTiles_System.md` replaces that transition experiment: a 16-case dual-grid tile set on 2 m cells, biome id per
 corner derived by the compositor, per-pair edge sets. Drawing rules + templates: `Docs/Terrain/TerrainEdgeTileGuide.md`.
 
+## Terrace cliff edges (spec `Tasks/Plans/TerraceCliffEdges_System.md`, wave 1 2026-11-27)
+- Plateau outline = `Utils/Terrain/TerraceCaseContour` (lines + 1 m quarter arcs through the 2 m side midpoints), not the art silhouette. Its value is **clamped to +-1 m on purpose**: that is what makes neighbouring cells (and tile seams) agree on a shared side. Anything that needs a far-field distance (hill banks, HL-D2, up to ~8 m) must compute its own, not unclamp this.
+- `StitchPunk.Editor.asmdef` did not reference `StitchPunk.Utils` before this; it does now.
+- Cliff Rim/Foot atlases come from `export_transition_atlas.py --cliff <Biome|all>`: each pixel samples the source ground piece at `q = p - offset * analyticCaseGradient(p)`. A numerically smoothed gradient warp or eroding the coverage both wreck the lobes (tried, rejected). Foot offset 0.675 m leaves only 0.325 m of lower biome in a cell, so single-corner foot pieces are tiny by geometry.
+- Offline mock: `edge_tile_mock.py --cliff-edges <dir>`. The foot is sampled at the pixel's own XZ with the complement case, never pushed toward the plateau.
+
 ## Traps
 - Tile subscenes are `AutoLoadScene=false` and draw nothing in the Scene view when closed; `TerrainOpenTilesSessionRestore` (TerrainTilesPanel.cs) reopens every `Tile_*` subscene for ~10 s after a reload, scene open or Play exit. Closing a tile on purpose lasts until the next one of those.
 - A test that creates GameObjects in the ACTIVE scene can leak them, and any later `SaveScene(active)` (tile creation does this) writes them into CampLoop.unity (it grew by 100k lines). Scatter tests run in `EditorSceneManager.NewPreviewScene()` (an additive `NewScene` throws "untitled scene unsaved" because the test runner leaves an untitled scene open); check `git diff --stat Assets/Scenes/CampLoop.unity` after any test run that touches scene objects.
