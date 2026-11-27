@@ -41,6 +41,8 @@ Shader "Painted/Ground"
         [NoScaleOffset] _SplatMap ("World splat map (RGB)", 2D) = "black" {}
         _SplatBounds ("World rect: minX, minZ, sizeX, sizeZ", Vector) = (-128, -128, 256, 256)
         _SplatGradStep ("Edge direction sample step (m)", Range(0.05, 2)) = 0.35
+        [NoScaleOffset] _TerraceCornerLevels ("Terrace corner levels (R8, level+3)", 2D) = "black" {}
+        _TerraceCornerOrigin ("Terrace corner origin xz, cell metres, corners per side", Vector) = (0,0,2,0)
 
         [Header(Anti tiling)]
         [Toggle(_SECOND_SAMPLE)] _UseSecond ("Second rotated sample", Float) = 1
@@ -108,6 +110,7 @@ Shader "Painted/Ground"
         CBUFFER_START(UnityPerMaterial)
             float4 _TileSizes;
             float4 _SplatBounds;
+            float4 _TerraceCornerOrigin;
             half4  _MacroDark;
             half4  _MacroLight;
             half4  _InkColor;
@@ -231,6 +234,7 @@ Shader "Painted/Ground"
             TEXTURE2D(_BlendNoiseTex);
             TEXTURE2D(_FringeTex);
             TEXTURE2D(_SplatMap);
+            TEXTURE2D(_TerraceCornerLevels);
             // Ink look globals (TerrainLightingBridge), deliberately outside the material CBUFFER.
             TEXTURE2D(_StitchInkDetailBaseTex);
             TEXTURE2D(_StitchInkDetailRTex);
@@ -253,6 +257,7 @@ Shader "Painted/Ground"
                 float4 positionOS : POSITION;
                 float3 normalOS   : NORMAL;
                 half4  color      : COLOR;
+                float4 uv0        : TEXCOORD0;   // z = terrace level of this vertex
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -263,6 +268,7 @@ Shader "Painted/Ground"
                 half3  normalWS   : TEXCOORD1;
                 half4  color      : TEXCOORD2;
                 half   fogFactor  : TEXCOORD3;
+                float  terraceLevel : TEXCOORD4;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
                 UNITY_VERTEX_OUTPUT_STEREO
             };
@@ -280,8 +286,33 @@ Shader "Painted/Ground"
                 OUT.positionCS = TransformWorldToHClip(StrategicProxyPushAway(OUT.positionWS));
                 OUT.normalWS   = TransformObjectToWorldNormal(IN.normalOS);
                 OUT.color      = IN.color;
+                OUT.terraceLevel = IN.uv0.z;
                 OUT.fogFactor  = ComputeFogFactor(OUT.positionCS.z);
                 return OUT;
+            }
+
+            float TerraceCornerLevel(int2 cornerIndex)
+            {
+                int cornersPerSide = (int)(_TerraceCornerOrigin.w + 0.5);
+                int2 clamped = clamp(cornerIndex, int2(0, 0), int2(cornersPerSide - 1, cornersPerSide - 1));
+                return round(_TerraceCornerLevels.Load(int3(clamped, 0)).r * 255.0) - 3.0;
+            }
+
+            // Ink only, from the same atlas, case bits and integer variant hash as the biome tiles (cell index is global: origin is a multiple of the cell size).
+            float TerraceEdgeTileInk(float2 wxz, float levelThreshold, float3 colourPlaceholder)
+            {
+                float  cellMetres = _TerraceCornerOrigin.z;
+                int2   cellIndex = (int2)floor((wxz - _TerraceCornerOrigin.xy) / cellMetres);
+                float4 cornerInside = float4(
+                    TerraceCornerLevel(cellIndex + int2(0, 1)) >= levelThreshold ? 1.0 : 0.0,
+                    TerraceCornerLevel(cellIndex + int2(1, 1)) >= levelThreshold ? 1.0 : 0.0,
+                    TerraceCornerLevel(cellIndex + int2(1, 0)) >= levelThreshold ? 1.0 : 0.0,
+                    TerraceCornerLevel(cellIndex)              >= levelThreshold ? 1.0 : 0.0);
+                float2 globalCellCoordinate = wxz / cellMetres;
+                float3 discardedColour; float inkOut; float discardedRim;
+                PaintedTransitionTile_float(_GroundEdgeTileAtlasR, sampler_linear_clamp, cornerInside, globalCellCoordinate, 47.0,
+                                            colourPlaceholder, colourPlaceholder, 0.0, 0.0, discardedColour, inkOut, discardedRim);
+                return inkOut;
             }
 
             #define FRINGE_ROWS 4.0
@@ -371,6 +402,13 @@ Shader "Painted/Ground"
                                             edgeCellCoordinate, 17.0, layerGColour, col, ink, rim, col, ink, rim);
                 PaintedTransitionTile_float(_GroundEdgeTileAtlasB, sampler_linear_clamp, float4(edgeCornerTopLeft.b, edgeCornerTopRight.b, edgeCornerBottomRight.b, edgeCornerBottomLeft.b),
                                             edgeCellCoordinate, 31.0, layerBColour, col, ink, rim, col, ink, rim);
+                if (_TerraceCornerOrigin.w > 0.5)
+                {
+                    float terraceMyLevel = round(IN.terraceLevel);
+                    // Rim: the top surface of this level; foot: the lower ground, which receives the plateau's outward flicks.
+                    ink = max(ink, TerraceEdgeTileInk(wxz, terraceMyLevel, col));
+                    ink = max(ink, TerraceEdgeTileInk(wxz, terraceMyLevel + 1.0, col));
+                }
             #elif defined(STITCH_INK_LOOK) && defined(_SPLAT_WORLDTEXTURE)
                 // Four corner taps shared by all three channels; a corner's world position gives the same value in every cell that owns it.
                 float  transitionCellMetres = max(_StitchTransitionCellMetres, 0.1);

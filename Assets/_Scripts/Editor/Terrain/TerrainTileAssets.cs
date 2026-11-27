@@ -275,11 +275,80 @@ public static class TerrainTileAssets
         groundMaterial.EnableKeyword("_SPLAT_WORLDTEXTURE");
         groundMaterial.DisableKeyword("_SPLAT_VERTEXCOLOR");
         groundMaterial.SetFloat("_Splat", 1f);
+        SetTerraceCornerProperties(tile, groundMaterial);
         EditorUtility.SetDirty(groundMaterial);
         AssetDatabase.SaveAssetIfDirty(groundMaterial);
 
         MeshRenderer tileRenderer = tile.GetComponent<MeshRenderer>();
         if (tileRenderer != null) tileRenderer.sharedMaterial = groundMaterial;
+    }
+
+    // Call after a terrace rebuild so the ground shader's corner levels match the new terraces.
+    public static void ApplyTerraceCornerLevels(TerrainTile tile)
+    {
+        Material groundMaterial = AssetDatabase.LoadAssetAtPath<Material>(MaterialPath(tile.tileCoordinate));
+        if (groundMaterial == null) return;
+        SetTerraceCornerProperties(tile, groundMaterial);
+        EditorUtility.SetDirty(groundMaterial);
+        AssetDatabase.SaveAssetIfDirty(groundMaterial);
+    }
+
+    public static string TerraceCornerLevelsPath(Vector2Int coordinate)
+    {
+        return FolderOf(coordinate) + "/Tile_" + coordinate.x + "_" + coordinate.y + "_TerraceCorners.png";
+    }
+
+    static TerrainTileData LoadTileDataForNeighbour(Vector2Int coordinate)
+    {
+        return AssetDatabase.LoadAssetAtPath<TerrainTileData>(TileDataPath(coordinate));
+    }
+
+    // 51 x 51 R8 texture, pixel (i, j) = terrace level + 3 at corner (i, j) of the 2 m dual grid; the shader decodes it.
+    static void SetTerraceCornerProperties(TerrainTile tile, Material groundMaterial)
+    {
+        Vector2Int coordinate = tile.tileCoordinate;
+        TerrainTileData tileData = tile.tileData != null ? tile.tileData : LoadTileDataForNeighbour(coordinate);
+        if (tileData == null) return;
+
+        const int cornersPerSide = 51;
+        int[] cornerLevels = TerraceEdgeTileOutline.BuildCornerLevels(tileData, LoadTileDataForNeighbour);
+        Color32[] pixels = new Color32[cornerLevels.Length];
+        for (int index = 0; index < cornerLevels.Length; index++)
+        {
+            byte encodedLevel = (byte)Mathf.Clamp(cornerLevels[index] + 3, 0, 6);
+            pixels[index] = new Color32(encodedLevel, 0, 0, 255);
+        }
+
+        string texturePath = TerraceCornerLevelsPath(coordinate);
+        bool existedBefore = File.Exists(texturePath);
+        Texture2D encoded = new Texture2D(cornersPerSide, cornersPerSide, TextureFormat.RGBA32, false, true);
+        encoded.SetPixels32(pixels);
+        encoded.Apply();
+        File.WriteAllBytes(texturePath, encoded.EncodeToPNG());
+        Object.DestroyImmediate(encoded);
+        AssetDatabase.ImportAsset(texturePath, ImportAssetOptions.ForceUpdate);
+
+        TextureImporter importer = AssetImporter.GetAtPath(texturePath) as TextureImporter;
+        if (importer != null && (!existedBefore || importer.textureType != TextureImporterType.SingleChannel))
+        {
+            importer.textureType = TextureImporterType.SingleChannel;
+            importer.sRGBTexture = false;
+            importer.wrapMode = TextureWrapMode.Clamp;
+            importer.filterMode = FilterMode.Point;
+            importer.mipmapEnabled = false;
+            importer.isReadable = false;
+            importer.npotScale = TextureImporterNPOTScale.None;
+            importer.textureCompression = TextureImporterCompression.Uncompressed;
+            importer.SaveAndReimport();
+        }
+
+        float halfTile = TerrainTile.TileSizeMetres * 0.5f;
+        groundMaterial.SetTexture("_TerraceCornerLevels", AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath));
+        groundMaterial.SetVector("_TerraceCornerOrigin", new Vector4(
+            coordinate.x * TerrainTile.TileSizeMetres - halfTile,
+            coordinate.y * TerrainTile.TileSizeMetres - halfTile,
+            2f,
+            cornersPerSide));
     }
 }
 #endif

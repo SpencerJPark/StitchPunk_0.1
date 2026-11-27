@@ -95,6 +95,7 @@ public static class TerrainTileBuilder
         }
 
         EnsureMeshCollider(tile, mesh);
+        TerrainTileAssets.ApplyTerraceCornerLevels(tile);
         ApplyOrRemoveTerraceChildren(tile, mesh, true);
 
         tileData.BumpRevision();

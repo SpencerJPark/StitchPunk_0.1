@@ -287,3 +287,10 @@ cells (capture from the gameplay angle); no gaps where a wall meets a tile seam;
   TerrainWorld (CampLoop deleted). Captures 13-15. Verdict: biome shapes organic, but forest borders read as stepped
   octagons (art wobble too small for 2 m cells) and the ink barely shows; terrace walls are still the Terraces look.
   Note: open RandomWorld fresh and the keyword is off until the bridge's Update runs (move the Scene view once).
+- 2026-11-27 Phase T PT1-PT3 built. Plateau outline now traced from the grass atlas silhouette on the 2 m grid (seed 47,
+  integer hash shared with the shader); rebuild of tile 0_0 terraces 1.7 s. PT3: `_TerraceCornerLevels` (51x51 R8,
+  level+3, `Tile_x_z_TerraceCorners.png`) + `_TerraceCornerOrigin` per tile, vertex level in uv0.z, shader adds the
+  plateau case ink at threshold myLevel (rim) and myLevel+1 (foot). Captures 18-20: outline matches the tile lobes; the
+  rim/foot ink is NOT visible yet because the wall's rounded top fillet (with its own grass) and the foot batter cover
+  the 0.1-0.3 m band where the ink lands. Next: shrink `terraceTopRoundMetres`/foot round, retire the fillet grass in
+  `PaintedCliff` wall mode and the lip/foot dressing, so the tile ink is the rim.

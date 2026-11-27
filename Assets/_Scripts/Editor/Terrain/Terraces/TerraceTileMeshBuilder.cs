@@ -670,9 +670,12 @@ public static class TerraceTileMeshBuilder
             groundVertexLookup.Add(weldKey, positions.Count);
             positions.Add(new Vector3(tileMetres.x - HalfTile, LayerHeight(tileMetres) + level * levelHeight, tileMetres.y - HalfTile));
             normals.Add(GroundNormal(tileMetres));
-            uvs.Add(new Vector2(
+            // z carries the terrace level so PaintedGround can pick the edge-tile case per corner.
+            uvs.Add(new Vector4(
                 (tileWorldCentre.x + tileMetres.x - HalfTile) / TerrainTileData.TileSizeMetres,
-                (tileWorldCentre.y + tileMetres.y - HalfTile) / TerrainTileData.TileSizeMetres));
+                (tileWorldCentre.y + tileMetres.y - HalfTile) / TerrainTileData.TileSizeMetres,
+                level,
+                0f));
             return positions.Count - 1;
         }
 
