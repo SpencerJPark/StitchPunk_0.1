@@ -20,6 +20,7 @@
         "StitchPunk.Components",
         "StitchPunk.Authoring",
         "StitchPunk.MonoBehaviours",
+        "StitchPunk.Utils",
         "UnityEditor.UI",
         "DotsMovementToolkit.Runtime",
         "DotsMovementToolkit.Authoring",

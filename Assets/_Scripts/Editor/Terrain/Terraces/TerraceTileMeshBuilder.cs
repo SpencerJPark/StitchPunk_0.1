@@ -22,8 +22,8 @@ public static class TerraceTileMeshBuilder
     public static List<TerraceOutlineChain> LastBuildOutlineChains = new List<TerraceOutlineChain>();
     public static int LastBuildMultiCrossingSubcells;
 
-    // One-line revert to the rounded/blurred field.
-    private const bool UseEdgeTileOutline = true;
+    // One-line revert to the rounded/blurred field (CE-D1: the case-arc contour is the default).
+    private const bool UseCaseContourOutline = true;
     private const int SamplesPerMetre = 4;
     private const int CellsPerSide = 100;
     private const int SamplesPerSide = CellsPerSide * SamplesPerMetre + 1;
@@ -44,8 +44,8 @@ public static class TerraceTileMeshBuilder
         bool anyLevelIsNonZero = false;
         for (int threshold = firstThreshold; threshold <= lastThreshold; threshold++)
         {
-            float[] field = UseEdgeTileOutline
-                ? TerraceEdgeTileOutline.BuildSignedDistanceFromEdgeTiles(data, threshold, neighbourLookup, SamplesPerMetre)
+            float[] field = UseCaseContourOutline
+                ? TerraceEdgeTileOutline.BuildSignedDistanceFromCaseContour(data, threshold, neighbourLookup, SamplesPerMetre)
                 : TerraceLevelField.BuildSignedDistance(
                     data, threshold, world.terraceCornerRadiusMetres, neighbourLookup, SamplesPerMetre);
             signedDistance[threshold - firstThreshold] = field;
