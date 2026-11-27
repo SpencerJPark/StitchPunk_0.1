@@ -1,6 +1,12 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+public enum TerraceRampKind
+{
+    Straight,
+    AlongCliff
+}
+
 [ExecuteAlways]
 public class TerraceRamp : MonoBehaviour
 {
@@ -16,10 +22,17 @@ public class TerraceRamp : MonoBehaviour
     [Min(0)]
     public int lowerLevel;
 
+    public TerraceRampKind kind = TerraceRampKind.Straight;
+
+    // Seen from the lower ground facing the cliff; decides which long side of an AlongCliff ramp is the cliff.
+    public bool risesToTheRight = true;
+
     private Vector3 lastPosition;
     private Quaternion lastRotation;
     private float lastWidthMetres;
     private float lastRunMetres;
+    private TerraceRampKind lastKind;
+    private bool lastRisesToTheRight;
 
     public Vector2 CentreXZ => new Vector2(transform.position.x, transform.position.z);
 
@@ -94,6 +107,8 @@ public class TerraceRamp : MonoBehaviour
         lastRotation = transform.rotation;
         lastWidthMetres = widthMetres;
         lastRunMetres = runMetres;
+        lastKind = kind;
+        lastRisesToTheRight = risesToTheRight;
     }
 
     private void OnEnable()
@@ -126,7 +141,8 @@ public class TerraceRamp : MonoBehaviour
             return;
         }
 
-        if (transform.position == lastPosition && transform.rotation == lastRotation)
+        if (transform.position == lastPosition && transform.rotation == lastRotation
+            && kind == lastKind && risesToTheRight == lastRisesToTheRight)
         {
             return;
         }

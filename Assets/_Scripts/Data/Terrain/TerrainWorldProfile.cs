@@ -33,8 +33,10 @@ public class TerrainWorldProfile : ScriptableObject
     public float terraceLevelHeightMetres = 3f;
     public int maxTerraceLevels = 3;
     [Tooltip("Rounded outline corner radius in metres")] public float terraceCornerRadiusMetres = 2.5f;
-    [Tooltip("Tight rock bevel at a cliff top, metres (TX-D11, owner round 2)")] public float terraceTopRoundMetres = 0.2f;
-    [Tooltip("Tight rock bevel at a cliff foot, metres (TX-D11, owner round 2)")] public float terraceFootRoundMetres = 0.2f;
+    [Tooltip("Tight rock bevel at a cliff top, metres (TX-D11, owner round 2)")] public float terraceTopRoundMetres = 0.45f;
+    [Tooltip("Tight rock bevel at a cliff foot, metres (TX-D11, owner round 2)")] public float terraceFootRoundMetres = 0.45f;
+    // Bevels go into the ground mesh and are inked by the ground shader's rim/foot tiles instead of the wall fillets (CE-D2).
+    public bool terraceUseTileCliffEdges = true;
 
     public string groundLayerName = "Ground";
 

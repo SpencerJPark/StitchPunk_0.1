@@ -1,5 +1,5 @@
 ---
-status: BUILDING 2026-11-27, wave 1 done. Replaces TerrainEdgeTiles_System.md section 8.1 PT2 (outline from the art) and finishes PT3 (rim/foot ink).
+status: BUILDING 2026-11-27, waves 1-2 done. Replaces TerrainEdgeTiles_System.md section 8.1 PT2 (outline from the art) and finishes PT3 (rim/foot ink).
 parent: Tasks/Plans/TerrainEdgeTiles_System.md (16-case dual grid, 2 m cells), Tasks/Plans/Terraces_System.md (levels, ramps, walls)
 references: Tasks/Captures/References/4_dse_wendywillowforestfire_a.png, 3_dse_04_wilsongettingknockedoffcliff.png, edgesSample.png;
             Tasks/Captures/EdgeTiles_2026-11-25/10_cliff_profile_labelled.png (the target profile)
@@ -333,3 +333,4 @@ Acceptance:
 - 2026-11-27 Spec written after the PT3 session stalled. Diagnosis in section 1. Uncommitted work from that session
   (edge atlas PNGs staged, RandomWorld tiles modified) was left as is.
 - 2026-11-27 Wave 1: C1 case contour + fixture (proved to fail without the +-1 m clamp; Editor asmdef now refs Utils); C3a 8 Rim/Foot sets by analytic-normal transfer (rim crossings exact, foot single-corner cases 1/2/4/8 cross ~0.12 m short, fix rides wave 2); C0 mock captures 01-04 in Captures/CliffEdges_2026-11-27 posted to owner, judged: rounded outline, lip over light rim, foot lapping, junction clean.
+- 2026-11-27 Wave 2: C2 bevels into the ground mesh behind `terraceUseTileCliffEdges` (0.45 m), terrace lip dressing off under the flag (ramp walls keep theirs); C3b Pack menu -> 8-slice linear array, bridge globals (assigned in RandomWorld only, uncommitted leftover scene; TerrainWorld at C4); H3 ramp kind + AlongCliff (uphill = forward, cliff side per risesToTheRight, flat 2 m landing, wall clipped only beside the landing; subcells inside a ramp now still emit wall segments); foot crossings fixed by a 0.12 m side blend. Captures 05-08. Open for C5: AlongCliff landing's far end is open (void shows), ramp outer wall foot sawtooths (per-subcell ground cut-out).

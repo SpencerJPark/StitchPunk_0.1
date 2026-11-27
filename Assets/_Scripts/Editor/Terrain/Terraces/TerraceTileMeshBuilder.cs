@@ -64,7 +64,7 @@ public static class TerraceTileMeshBuilder
         }
 
         TileBuild build = new TileBuild(data, world.terraceLevelHeightMetres, verticalOffsetMetres, signedDistance, firstThreshold, ramps,
-            world.terraceTopRoundMetres, world.terraceFootRoundMetres);
+            world.terraceTopRoundMetres, world.terraceFootRoundMetres, world.terraceUseTileCliffEdges);
         return build.BuildMesh();
     }
 
@@ -107,6 +107,7 @@ public static class TerraceTileMeshBuilder
         private const float FootLiftMetres = 0.03f;
         private readonly float topRoundMetres;
         private readonly float footRoundMetres;
+        private readonly bool useTileCliffEdges;
         private readonly float levelHeight;
         private readonly float verticalOffset;
         private readonly float[][] signedDistance;
@@ -114,6 +115,7 @@ public static class TerraceTileMeshBuilder
         private readonly Vector2 tileWorldCentre;
         private readonly List<Vector2[]> rampCorners = new List<Vector2[]>();
         private readonly List<Vector4> rampBounds = new List<Vector4>();
+        private readonly List<Vector2[]> wallClipRampCorners = new List<Vector2[]>();
         private readonly int[] levels = new int[SamplesPerSide * SamplesPerSide];
         private readonly bool[] cellSubdivided = new bool[CellsPerSide * CellsPerSide];
         private readonly Dictionary<long, int> groundVertexLookup = new Dictionary<long, int>();
@@ -132,8 +134,10 @@ public static class TerraceTileMeshBuilder
             int firstThreshold,
             IReadOnlyList<TerraceRampFootprint> ramps,
             float topRoundMetres,
-            float footRoundMetres)
+            float footRoundMetres,
+            bool useTileCliffEdges)
         {
+            this.useTileCliffEdges = useTileCliffEdges;
             this.topRoundMetres = Mathf.Max(0f, topRoundMetres);
             this.footRoundMetres = Mathf.Max(0f, footRoundMetres);
             this.firstThreshold = firstThreshold;
@@ -189,6 +193,9 @@ public static class TerraceTileMeshBuilder
                 Vector2[] corners = new Vector2[4];
                 TerraceRampFootprint ramp = ramps[index];
                 TerraceRampMeshBuilder.GetFootprintCornersXZ(in ramp, corners);
+                Vector2[] wallClipCorners = new Vector2[4];
+                TerraceRampMeshBuilder.GetWallClipCornersXZ(in ramp, wallClipCorners);
+                wallClipRampCorners.Add(wallClipCorners);
                 Vector4 bounds = new Vector4(float.MaxValue, float.MaxValue, float.MinValue, float.MinValue);
                 for (int corner = 0; corner < 4; corner++)
                 {
@@ -327,10 +334,7 @@ public static class TerraceTileMeshBuilder
                 new Vector2(sampleX + 1, sampleZ + 1) * SubcellMetres,
                 new Vector2(sampleX, sampleZ + 1) * SubcellMetres,
             };
-            if (AllPointsInsideRamp(cornerPositions))
-            {
-                return;
-            }
+            bool insideRamp = AllPointsInsideRamp(cornerPositions);
 
             int lowestLevel = int.MaxValue;
             int highestLevel = int.MinValue;
@@ -341,6 +345,10 @@ public static class TerraceTileMeshBuilder
             }
             if (lowestLevel == highestLevel)
             {
+                if (insideRamp)
+                {
+                    return;
+                }
                 EmitTriangle(cornerPositions[0], cornerPositions[3], cornerPositions[1], lowestLevel, groundTriangles);
                 EmitTriangle(cornerPositions[1], cornerPositions[3], cornerPositions[2], lowestLevel, groundTriangles);
                 return;
@@ -349,10 +357,10 @@ public static class TerraceTileMeshBuilder
             {
                 LastBuildMultiCrossingSubcells++;
             }
-            EmitMarchedSubcell(cornerIndices, cornerPositions, lowestLevel);
+            EmitMarchedSubcell(cornerIndices, cornerPositions, lowestLevel, !insideRamp);
         }
 
-        private void EmitMarchedSubcell(int[] cornerIndices, Vector2[] cornerPositions, int lowestLevel)
+        private void EmitMarchedSubcell(int[] cornerIndices, Vector2[] cornerPositions, int lowestLevel, bool emitGround)
         {
             float[] field = signedDistance[lowestLevel + 1 - firstThreshold];
             bool[] inside = new bool[4];
@@ -377,8 +385,11 @@ public static class TerraceTileMeshBuilder
             Vector2 wallNormal = DecreasingFieldDirection(field, cornerIndices);
             if (crossingCount == 2)
             {
-                EmitSidePolygon(cornerPositions, inside, isoPoints, crossing, false, lowestLevel);
-                EmitSidePolygon(cornerPositions, inside, isoPoints, crossing, true, lowestLevel + 1);
+                if (emitGround)
+                {
+                    EmitSidePolygon(cornerPositions, inside, isoPoints, crossing, false, lowestLevel);
+                    EmitSidePolygon(cornerPositions, inside, isoPoints, crossing, true, lowestLevel + 1);
+                }
                 int firstEdge = -1;
                 int secondEdge = -1;
                 for (int edge = 0; edge < 4; edge++)
@@ -403,12 +414,18 @@ public static class TerraceTileMeshBuilder
             float centreValue = (field[cornerIndices[0]] + field[cornerIndices[1]] + field[cornerIndices[2]] + field[cornerIndices[3]]) * 0.25f;
             bool centreInside = centreValue >= 0f;
             List<Vector2> centreQuad = new List<Vector2> { isoPoints[0], isoPoints[1], isoPoints[2], isoPoints[3] };
-            EmitCentroidFan(centreQuad, (isoPoints[0] + isoPoints[1] + isoPoints[2] + isoPoints[3]) * 0.25f, centreInside ? lowestLevel + 1 : lowestLevel);
+            if (emitGround)
+            {
+                EmitCentroidFan(centreQuad, (isoPoints[0] + isoPoints[1] + isoPoints[2] + isoPoints[3]) * 0.25f, centreInside ? lowestLevel + 1 : lowestLevel);
+            }
             for (int corner = 0; corner < 4; corner++)
             {
                 int previousEdge = (corner + 3) % 4;
                 int cornerLevel = inside[corner] ? lowestLevel + 1 : lowestLevel;
-                EmitTriangle(isoPoints[previousEdge], cornerPositions[corner], isoPoints[corner], cornerLevel, groundTriangles);
+                if (emitGround)
+                {
+                    EmitTriangle(isoPoints[previousEdge], cornerPositions[corner], isoPoints[corner], cornerLevel, groundTriangles);
+                }
                 if (inside[corner] != centreInside)
                 {
                     AddWallSegment(isoPoints[previousEdge], isoPoints[corner], lowestLevel, WallNormalForCorner(inside[corner], cornerPositions[corner], isoPoints[previousEdge], isoPoints[corner]));
@@ -513,9 +530,9 @@ public static class TerraceTileMeshBuilder
             Vector2 localToWorld = tileWorldCentre - new Vector2(HalfTile, HalfTile);
             Vector2 worldStart = start + localToWorld;
             Vector2 worldEnd = end + localToWorld;
-            for (int rampIndex = 0; rampIndex < rampCorners.Count; rampIndex++)
+            for (int rampIndex = 0; rampIndex < wallClipRampCorners.Count; rampIndex++)
             {
-                Vector2[] corners = rampCorners[rampIndex];
+                Vector2[] corners = wallClipRampCorners[rampIndex];
                 bool startInside = PointInConvexQuad(corners, worldStart);
                 bool endInside = PointInConvexQuad(corners, worldEnd);
                 if (startInside && endInside)
@@ -558,9 +575,9 @@ public static class TerraceTileMeshBuilder
                 }
             }
             Vector2 worldMidpoint = (worldStart + worldEnd) * 0.5f;
-            for (int rampIndex = 0; rampIndex < rampCorners.Count; rampIndex++)
+            for (int rampIndex = 0; rampIndex < wallClipRampCorners.Count; rampIndex++)
             {
-                if (PointInConvexQuad(rampCorners[rampIndex], worldMidpoint))
+                if (PointInConvexQuad(wallClipRampCorners[rampIndex], worldMidpoint))
                 {
                     return false;
                 }
@@ -578,9 +595,9 @@ public static class TerraceTileMeshBuilder
         private bool InsideAnyRampByMargin(Vector2 localPoint, float marginMetres)
         {
             Vector2 worldPoint = localPoint - new Vector2(HalfTile, HalfTile) + tileWorldCentre;
-            for (int rampIndex = 0; rampIndex < rampCorners.Count; rampIndex++)
+            for (int rampIndex = 0; rampIndex < wallClipRampCorners.Count; rampIndex++)
             {
-                Vector2[] corners = rampCorners[rampIndex];
+                Vector2[] corners = wallClipRampCorners[rampIndex];
                 int positiveCount = 0;
                 int negativeCount = 0;
                 for (int corner = 0; corner < 4; corner++)
@@ -870,7 +887,7 @@ public static class TerraceTileMeshBuilder
                     : bottoms[index];
             }
 
-            EmitCliffStrips(chainPoints, outward, pointArcs, tops, bottoms, footHeights, topRounds, footRounds, batters);
+            EmitCliffStrips(chainPoints, outward, pointArcs, tops, bottoms, footHeights, topRounds, footRounds, batters, pointLowerLevels);
 
             TerraceOutlineChain chain = new TerraceOutlineChain();
             chain.points = points.ToArray();
@@ -886,8 +903,9 @@ public static class TerraceTileMeshBuilder
         // Group 0 = convex top fillet (grass), 1 = steep face (rock), 2 = concave foot fillet (grass).
         private void EmitCliffStrips(
             Vector2[] chainPoints, Vector2[] outward, float[] pointArcs, float[] tops, float[] bottoms,
-            float[] footHeights, float[] topRounds, float[] footRounds, float[] batters)
+            float[] footHeights, float[] topRounds, float[] footRounds, float[] batters, int[] pointLowerLevels)
         {
+            bool bevelGoesToGround = useTileCliffEdges;
             int pointCount = chainPoints.Length;
             int[] groupRowCounts = { FilletSteps + 1, 2, FilletSteps + 1 };
             for (int group = 0; group < 3; group++)
@@ -951,6 +969,15 @@ public static class TerraceTileMeshBuilder
                             pointArcs[index],
                             10f + arcMetres - topGrassEndArc,
                             10f + footGrassStartArc - arcMetres);
+                        if (bevelGoesToGround && group != 1)
+                        {
+                            int bevelLevel = group == 0 ? pointLowerLevels[index] + 1 : pointLowerLevels[index];
+                            uv = new Vector4(
+                                (tileWorldCentre.x + tileMetres.x - HalfTile) / TerrainTileData.TileSizeMetres,
+                                (tileWorldCentre.y + tileMetres.y - HalfTile) / TerrainTileData.TileSizeMetres,
+                                bevelLevel,
+                                0f);
+                        }
                         positions.Add(new Vector3(tileMetres.x - HalfTile, height, tileMetres.y - HalfTile));
                         normals.Add(normal.normalized);
                         uvs.Add(uv);
@@ -967,27 +994,28 @@ public static class TerraceTileMeshBuilder
                         {
                             continue;
                         }
-                        EmitProfileQuad(rowVertices[row][index], rowVertices[row][index + 1], rowVertices[row + 1][index + 1], rowVertices[row + 1][index]);
+                        EmitProfileQuad(rowVertices[row][index], rowVertices[row][index + 1], rowVertices[row + 1][index + 1], rowVertices[row + 1][index],
+                            bevelGoesToGround && group != 1 ? groundTriangles : wallTriangles);
                     }
                 }
             }
         }
 
-        private void EmitProfileQuad(int first, int second, int third, int fourth)
+        private void EmitProfileQuad(int first, int second, int third, int fourth, List<int> targetTriangles)
         {
-            EmitProfileTriangleFacingItsNormals(first, second, third);
-            EmitProfileTriangleFacingItsNormals(first, third, fourth);
+            EmitProfileTriangleFacingItsNormals(first, second, third, targetTriangles);
+            EmitProfileTriangleFacingItsNormals(first, third, fourth, targetTriangles);
         }
 
-        private void EmitProfileTriangleFacingItsNormals(int first, int second, int third)
+        private void EmitProfileTriangleFacingItsNormals(int first, int second, int third, List<int> targetTriangles)
         {
             Vector3 firstPosition = positions[first];
             Vector3 facing = Vector3.Cross(positions[second] - firstPosition, positions[third] - firstPosition);
             Vector3 vertexNormal = normals[first] + normals[second] + normals[third];
             bool facesOutward = Vector3.Dot(facing, vertexNormal) > 0f;
-            wallTriangles.Add(first);
-            wallTriangles.Add(facesOutward ? second : third);
-            wallTriangles.Add(facesOutward ? third : second);
+            targetTriangles.Add(first);
+            targetTriangles.Add(facesOutward ? second : third);
+            targetTriangles.Add(facesOutward ? third : second);
         }
 
         private static long QuantisedKey(Vector2 tileMetres)

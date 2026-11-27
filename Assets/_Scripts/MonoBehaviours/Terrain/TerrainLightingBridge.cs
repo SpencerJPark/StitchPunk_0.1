@@ -24,6 +24,9 @@ public class TerrainLightingBridge : MonoBehaviour
     static readonly int GroundEdgeTileAtlasForestPropertyId = Shader.PropertyToID("_GroundEdgeTileAtlasG");
     static readonly int GroundEdgeTileAtlasStonePropertyId = Shader.PropertyToID("_GroundEdgeTileAtlasB");
     static readonly int GroundEdgeTileCellMetresPropertyId = Shader.PropertyToID("_GroundEdgeTileCellMetres");
+    static readonly int TerraceCliffEdgesPropertyId = Shader.PropertyToID("_TerraceCliffEdges");
+    static readonly int TerraceRimRockPropertyId = Shader.PropertyToID("_TerraceRimRock");
+    static readonly int TerraceFootRockPropertyId = Shader.PropertyToID("_TerraceFootRock");
 
     public Color ambientTint = Color.white;
 
@@ -80,6 +83,11 @@ public class TerrainLightingBridge : MonoBehaviour
     [Tooltip("Splat B layer: Stone drawn over what is below it.")]
     public Texture2D stoneEdgeTileAtlas;
 
+    [Tooltip("Rim slices (Dirt, Grass, Forest, Stone) then Foot slices; packed by Stitch Punk/Terrain/Edge Tiles/Pack Cliff Edge Sets.")]
+    public Texture2DArray terraceCliffEdgeArray;
+    public Color rimRockColour = new Color(0.80f, 0.71f, 0.58f);
+    public Color footRockColour = new Color(0.42f, 0.36f, 0.30f);
+
     [Min(0.5f)] public float edgeTileCellMetres = 2f;
 
     float currentFlash;
@@ -125,6 +133,12 @@ public class TerrainLightingBridge : MonoBehaviour
 
     void PushEdgeTileGlobals()
     {
+        if (terraceCliffEdgeArray != null)
+        {
+            Shader.SetGlobalTexture(TerraceCliffEdgesPropertyId, terraceCliffEdgeArray);
+        }
+        Shader.SetGlobalColor(TerraceRimRockPropertyId, rimRockColour);
+        Shader.SetGlobalColor(TerraceFootRockPropertyId, footRockColour);
         if (!edgeTilesEnabled || grassEdgeTileAtlas == null)
         {
             Shader.DisableKeyword(GroundEdgeTilesKeyword);

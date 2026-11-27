@@ -100,7 +100,7 @@ public static class TerraceTileAssembly
                 + TerrainTileData.GroundTopHeightMetres + ramp.lowerLevel * world.terraceLevelHeightMetres;
             float upperHeight = data.SampleBilinear(upperEndCentre.x, upperEndCentre.y)
                 + TerrainTileData.GroundTopHeightMetres + (ramp.lowerLevel + 1) * world.terraceLevelHeightMetres;
-            footprints.Add(new TerraceRampFootprint(ramp.CentreXZ, ramp.YawDegrees, ramp.widthMetres, ramp.runMetres, lowerHeight, upperHeight));
+            footprints.Add(new TerraceRampFootprint(ramp.CentreXZ, ramp.YawDegrees, ramp.widthMetres, ramp.runMetres, lowerHeight, upperHeight, ramp.kind, ramp.risesToTheRight));
         }
         return footprints;
     }
@@ -193,7 +193,8 @@ public static class TerraceTileAssembly
 
         ApplyWallsChild(tile, tileMesh, wallMaterial, persist);
         List<TerraceOutlineChain> dressingChains = new List<TerraceOutlineChain>();
-        if (chains != null)
+        // CE-D2: with tile cliff edges the ground shader draws rim and foot art, so only ramp walls keep the old lip dressing.
+        if (chains != null && (world == null || !world.terraceUseTileCliffEdges))
             dressingChains.AddRange(chains);
 
         int rampCount = 0;

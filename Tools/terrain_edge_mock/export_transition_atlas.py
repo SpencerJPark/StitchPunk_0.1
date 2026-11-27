@@ -37,7 +37,7 @@ DIRT_BLUR_SIGMA_PIXELS = 7.0
 DIRT_INK_HALF_WIDTH_PIXELS = 2.2
 DIRT_INK_COVERAGE_FRACTION = 0.45
 CROSSING_TOLERANCE_PIXELS = 4.0
-CORNER_FLOOR_MARGIN_METRES = 0.15  # source art whose lobe is shorter than the foot line would drop the corner's case bit
+SIDE_BLEND_METRES = 0.12
 PIECE_PIXELS = 256
 CELL_PIXELS = 128
 VARIANT_COUNT = 2
@@ -198,8 +198,15 @@ def offset_case_piece(case_index, coverage, ink, offset_metres):
     sampled_coverage = bilinear_sample(coverage, source_row, source_column)
     sampled_ink = bilinear_sample(ink, source_row, source_column)
     fallback_coverage = (distance - offset_metres > 0).astype(np.float32)
-    sampled_coverage = np.maximum(sampled_coverage, (distance - offset_metres > CORNER_FLOOR_MARGIN_METRES).astype(np.float32))
-    return np.where(inside_piece, sampled_coverage, fallback_coverage), np.where(inside_piece, np.clip(sampled_ink, 0.0, 1.0), 0.0)
+    transferred_coverage = np.where(inside_piece, sampled_coverage, fallback_coverage)
+    transferred_ink = np.where(inside_piece, np.clip(sampled_ink, 0.0, 1.0), 0.0)
+    # Near a cell side the transferred art drifts off the offset line; blend to the analytic step so both cells sharing a side cross at the same point.
+    side_distance = np.minimum(np.minimum(grid_x, 2.0 - grid_x), np.minimum(grid_z, 2.0 - grid_z))
+    blend_parameter = np.clip(side_distance / SIDE_BLEND_METRES, 0.0, 1.0)
+    side_weight = blend_parameter * blend_parameter * (3.0 - 2.0 * blend_parameter)
+    analytic_coverage = np.clip((distance - offset_metres) / (1.0 / pixels_per_metre) + 0.5, 0.0, 1.0)
+    blended_coverage = analytic_coverage + (transferred_coverage - analytic_coverage) * side_weight
+    return blended_coverage.astype(np.float32), (transferred_ink * side_weight).astype(np.float32)
 
 
 def check_source_orientation(biome):
@@ -287,6 +294,7 @@ def check_side_crossings(atlas, offset_pixels_at_cell_scale, label_text):
     for failure in failures:
         print(label_text, "CROSSING OFF (variant, case, side, measured px):", failure)
     print(label_text, "side crossings: %d sides checked, %d off, expected %.1f px from covered corner, worst passing error %.2f px" % (checked, len(failures), expected_distance, worst_error))
+    assert not failures, failures
 
 
 def write_preview(atlas, preview_path):

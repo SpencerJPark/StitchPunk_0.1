@@ -11,6 +11,8 @@ public readonly struct TerraceRampFootprint
     public readonly float runMetres;
     public readonly float lowerHeight;
     public readonly float upperHeight;
+    public readonly TerraceRampKind kind;
+    public readonly bool risesToTheRight;
 
     public TerraceRampFootprint(
         Vector2 centre,
@@ -18,7 +20,9 @@ public readonly struct TerraceRampFootprint
         float widthMetres,
         float runMetres,
         float lowerHeight,
-        float upperHeight)
+        float upperHeight,
+        TerraceRampKind kind = TerraceRampKind.Straight,
+        bool risesToTheRight = true)
     {
         this.centre = centre;
         this.yawDegrees = yawDegrees;
@@ -26,6 +30,8 @@ public readonly struct TerraceRampFootprint
         this.runMetres = runMetres;
         this.lowerHeight = lowerHeight;
         this.upperHeight = upperHeight;
+        this.kind = kind;
+        this.risesToTheRight = risesToTheRight;
     }
 }
 
@@ -37,6 +43,37 @@ public static class TerraceRampMeshBuilder
     private const int VerticesPerWallRow = (FilletSteps + 1) * 2 + 2;
     private const float ProfiledVertexUvOffset = 10f;
     private const float WallRowsPerMetre = 2f;
+    public const float AlongCliffLandingMetres = 2f;
+
+    // AlongCliff keeps no wall on the cliff side: left of forward when it rises to the right, right of forward otherwise.
+    public static bool HasSideWall(in TerraceRampFootprint ramp, bool rightSide)
+    {
+        if (ramp.kind != TerraceRampKind.AlongCliff)
+        {
+            return true;
+        }
+
+        bool cliffIsOnRightSide = !ramp.risesToTheRight;
+        return rightSide != cliffIsOnRightSide;
+    }
+
+    // Straight ramps cut through the cliff, so the whole footprint clips the wall; an AlongCliff ramp only needs
+    // the wall removed beside its flat landing.
+    public static void GetWallClipCornersXZ(in TerraceRampFootprint ramp, Vector2[] fourCorners)
+    {
+        GetFootprintCornersXZ(ramp, fourCorners);
+        if (ramp.kind != TerraceRampKind.AlongCliff)
+        {
+            return;
+        }
+
+        Vector2 forward = ForwardXZ(ramp.yawDegrees);
+        Vector2 landingStartOffset = forward * (LandingMetres(ramp));
+        Vector2 upperLeft = fourCorners[3];
+        Vector2 upperRight = fourCorners[2];
+        fourCorners[0] = upperLeft - landingStartOffset;
+        fourCorners[1] = upperRight - landingStartOffset;
+    }
 
     public static void GetFootprintCornersXZ(in TerraceRampFootprint ramp, Vector2[] fourCorners)
     {
@@ -69,12 +106,14 @@ public static class TerraceRampMeshBuilder
         int surfaceVertexCount = rowCount * columnCount;
         int wallCellsAlong = WallCellsAlong(ramp);
         int wallRowCount = wallCellsAlong + 1;
-        int vertexCount = surfaceVertexCount + 2 * VerticesPerWallRow * wallRowCount;
+        int wallSideCount = (HasSideWall(ramp, false) ? 1 : 0) + (HasSideWall(ramp, true) ? 1 : 0);
+        int vertexCount = surfaceVertexCount + wallSideCount * VerticesPerWallRow * wallRowCount;
 
         Vector2 forward = ForwardXZ(ramp.yawDegrees);
         Vector2 right = RightXZ(ramp.yawDegrees);
         float rise = ramp.upperHeight - ramp.lowerHeight;
-        float slope = ramp.runMetres > 0f ? rise / ramp.runMetres : 0f;
+        float slopeRunMetres = SlopeRunMetres(ramp);
+        float slope = ramp.runMetres > 0f ? rise / slopeRunMetres : 0f;
         float edgeLength = Mathf.Sqrt(ramp.runMetres * ramp.runMetres + rise * rise);
         Vector3 surfaceNormal = new Vector3(-forward.x * slope, 1f, -forward.y * slope).normalized;
 
@@ -115,12 +154,19 @@ public static class TerraceRampMeshBuilder
         List<int> wallTriangles = new List<int>(2 * wallCellsAlong * (FilletSteps * 2 + 1) * 6);
         int[] groupStarts = { 0, FilletSteps + 1, FilletSteps + 3 };
         int[] groupRowCounts = { FilletSteps + 1, 2, FilletSteps + 1 };
+        int emittedWallSides = 0;
         for (int side = 0; side < 2; side++)
         {
             bool isRightSide = side == 1;
+            if (!HasSideWall(ramp, isRightSide))
+            {
+                continue;
+            }
+
             float acrossFraction = isRightSide ? 1f : 0f;
             Vector2 outwardXZ = isRightSide ? right : -right;
-            int wallBase = surfaceVertexCount + side * VerticesPerWallRow * wallRowCount;
+            int wallBase = surfaceVertexCount + emittedWallSides * VerticesPerWallRow * wallRowCount;
+            emittedWallSides++;
             float[] wallHeights = new float[wallRowCount];
             for (int row = 0; row < wallRowCount; row++)
             {
@@ -214,6 +260,11 @@ public static class TerraceRampMeshBuilder
         for (int side = 0; side < 2; side++)
         {
             bool isRightSide = side == 1;
+            if (!HasSideWall(ramp, isRightSide))
+            {
+                continue;
+            }
+
             float acrossFraction = isRightSide ? 1f : 0f;
             Vector2 outwardXZ = isRightSide ? right : -right;
             TerraceOutlineChain chain = new TerraceOutlineChain();
@@ -330,7 +381,29 @@ public static class TerraceRampMeshBuilder
 
     private static float HeightAt(in TerraceRampFootprint ramp, float alongFraction)
     {
-        return Mathf.Lerp(ramp.lowerHeight, ramp.upperHeight, alongFraction);
+        float slopeRunMetres = SlopeRunMetres(ramp);
+        if (slopeRunMetres >= ramp.runMetres)
+        {
+            return Mathf.Lerp(ramp.lowerHeight, ramp.upperHeight, alongFraction);
+        }
+
+        float slopeFraction = Mathf.Clamp01(alongFraction * ramp.runMetres / slopeRunMetres);
+        return Mathf.Lerp(ramp.lowerHeight, ramp.upperHeight, slopeFraction);
+    }
+
+    private static float LandingMetres(in TerraceRampFootprint ramp)
+    {
+        if (ramp.kind != TerraceRampKind.AlongCliff)
+        {
+            return 0f;
+        }
+
+        return Mathf.Min(AlongCliffLandingMetres, ramp.runMetres * 0.5f);
+    }
+
+    private static float SlopeRunMetres(in TerraceRampFootprint ramp)
+    {
+        return Mathf.Max(ramp.runMetres - LandingMetres(ramp), 0.01f);
     }
 
     private static Vector3 ToTileLocal(Vector2 worldXZ, float height, Vector3 tileOrigin)

@@ -108,6 +108,8 @@ corner derived by the compositor, per-pair edge sets. Drawing rules + templates:
 - Plateau outline = `Utils/Terrain/TerraceCaseContour` (lines + 1 m quarter arcs through the 2 m side midpoints), not the art silhouette. Its value is **clamped to +-1 m on purpose**: that is what makes neighbouring cells (and tile seams) agree on a shared side. Anything that needs a far-field distance (hill banks, HL-D2, up to ~8 m) must compute its own, not unclamp this.
 - `StitchPunk.Editor.asmdef` did not reference `StitchPunk.Utils` before this; it does now.
 - Cliff Rim/Foot atlases come from `export_transition_atlas.py --cliff <Biome|all>`: each pixel samples the source ground piece at `q = p - offset * analyticCaseGradient(p)`. A numerically smoothed gradient warp or eroding the coverage both wreck the lobes (tried, rejected). Foot offset 0.675 m leaves only 0.325 m of lower biome in a cell, so single-corner foot pieces are tiny by geometry.
+- Play-mode capture camera: `CopyFrom(Camera.main)` copies the main camera's overridden view matrix, so moving the transform does nothing until `ResetWorldToCameraMatrix()` / `ResetProjectionMatrix()` / `ResetCullingMatrix()`. Mask to Default|Ground|Water to drop props.
+- Tile mesh: bevels (top/foot fillets) are ground-submesh triangles with ground uv (level in z) when `terraceUseTileCliffEdges`; only the face is wall submesh. `EmitSubcell` inside a ramp footprint skips ground only; walls go through `TryClipSegmentOutsideRamps` (AlongCliff clips only its landing).
 - Offline mock: `edge_tile_mock.py --cliff-edges <dir>`. The foot is sampled at the pixel's own XZ with the complement case, never pushed toward the plateau.
 
 ## Traps
