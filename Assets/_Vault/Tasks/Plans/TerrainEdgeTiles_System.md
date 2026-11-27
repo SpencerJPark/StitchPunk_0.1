@@ -214,6 +214,8 @@ Open for the Phase T spike (defaults apply if the owner does not answer):
   with normal tile transition... it should be the same tiling", even if the edge shapes change.
 - T-Q2 Kit pieces hand-modelled or generated from the TX-D11 profile. Default: generated, swappable per piece.
 
+> **2026-11-27: superseded for PT2/PT3 by `TerraceCliffEdges_System.md`** (smooth case-arc outline, bevels in the ground mesh, per-biome Rim/Foot sets). PT1 hash stays.
+
 ### 8.1 Build plan (2026-11-27, started now; Terraces session is stopped, owner directs this)
 
 Audit of today's pipeline: levels are 1 m cells (`baseTerraceLevels`/`handTerraceLevels`, -3..+3);
