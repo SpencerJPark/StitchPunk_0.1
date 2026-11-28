@@ -96,8 +96,8 @@ public static class TerraceTileAssembly
             Vector2 forward = new Vector2(Mathf.Sin(yawRadians), Mathf.Cos(yawRadians));
             Vector2 lowerEndCentre = ramp.CentreXZ - forward * (ramp.runMetres * 0.5f);
             Vector2 upperEndCentre = ramp.CentreXZ + forward * (ramp.runMetres * 0.5f);
-            // The step kind belongs to the region the ramp climbs onto, so both ends read the upper end's cell.
-            byte stepKindsOfClimbedRegion = StepKindsOfCellUnder(data, upperEndCentre);
+            // The step kind lives on the region away from level 0: the upper end for a plateau, the lower end for a sunken step.
+            byte stepKindsOfClimbedRegion = StepKindsOfCellUnder(data, ramp.lowerLevel < 0 ? lowerEndCentre : upperEndCentre);
             float lowerHeight = data.SampleBilinear(lowerEndCentre.x, lowerEndCentre.y)
                 + TerrainTileData.GroundTopHeightMetres
                 + TerrainTileData.TerraceLevelOffsetMetres(stepKindsOfClimbedRegion, ramp.lowerLevel, world.terraceLevelHeightMetres, world.hillStepHeightMetres);
@@ -229,7 +229,7 @@ public static class TerraceTileAssembly
                 if (!centreInsideTile)
                     continue;
 
-                ApplyRampChild(tile, rampCount, footprint, groundMaterial, wallMaterial, topRoundMetres, footRoundMetres, persist);
+                ApplyRampChild(tile, rampCount, footprint, groundMaterial, wallMaterial, topRoundMetres, footRoundMetres, world, persist);
                 List<TerraceOutlineChain> rampChains = TerraceRampMeshBuilder.BuildSideWallOutlineChains(in footprint, tile.transform.position, topRoundMetres, footRoundMetres);
                 if (rampChains != null)
                     dressingChains.AddRange(rampChains);
@@ -410,8 +410,28 @@ public static class TerraceTileAssembly
         return resolution == expectedResolution ? pixels : null;
     }
 
-    static void ApplyRampChild(TerrainTile tile, int rampIndex, TerraceRampFootprint footprint, Material groundMaterial, Material wallMaterial, float topRoundMetres, float footRoundMetres, bool persist)
+    static void ApplyRampChild(TerrainTile tile, int rampIndex, TerraceRampFootprint footprint, Material groundMaterial, Material wallMaterial, float topRoundMetres, float footRoundMetres, TerrainWorldProfile world, bool persist)
     {
+        System.Func<Vector2, float> baseHeightAtWorldXZ = null;
+        System.Func<Vector2, float> groundHeightAtWorldXZ = null;
+        TerrainTileData tileData = tile.tileData;
+        if (tileData != null)
+        {
+            Vector2 worldMinCorner = tileData.WorldMinCorner();
+            float levelHeightMetres = world != null ? world.terraceLevelHeightMetres : 0f;
+            float hillStepMetres = world != null ? world.hillStepHeightMetres : 0f;
+            baseHeightAtWorldXZ = (Vector2 worldXZ) => tileData.SampleBilinear(worldXZ.x, worldXZ.y) + TerrainTileData.GroundTopHeightMetres;
+            groundHeightAtWorldXZ = (Vector2 worldXZ) =>
+            {
+                int cellX = Mathf.Clamp(Mathf.FloorToInt(worldXZ.x - worldMinCorner.x), 0, TerrainTileData.TerraceCellsPerSide - 1);
+                int cellZ = Mathf.Clamp(Mathf.FloorToInt(worldXZ.y - worldMinCorner.y), 0, TerrainTileData.TerraceCellsPerSide - 1);
+                int cellIndex = cellZ * TerrainTileData.TerraceCellsPerSide + cellX;
+                float levelOffset = TerrainTileData.TerraceLevelOffsetMetres(
+                    tileData.EffectiveTerraceStepKinds(cellIndex), TerraceLevelField.ResolvedLevel(tileData, cellX, cellZ), levelHeightMetres, hillStepMetres);
+                return tileData.SampleBilinear(worldXZ.x, worldXZ.y) + TerrainTileData.GroundTopHeightMetres + levelOffset;
+            };
+        }
+
         string childName = RampChildPrefix + rampIndex;
         Transform existingChild = tile.transform.Find(childName);
         Transform child = existingChild != null ? existingChild : CreateChild(tile.transform, childName);
@@ -419,7 +439,7 @@ public static class TerraceTileAssembly
         MeshRenderer meshRenderer = GetOrAdd<MeshRenderer>(child.gameObject);
         MeshCollider meshCollider = GetOrAdd<MeshCollider>(child.gameObject);
 
-        Mesh rampMesh = TerraceRampMeshBuilder.BuildRampMesh(in footprint, tile.transform.position, topRoundMetres, footRoundMetres);
+        Mesh rampMesh = TerraceRampMeshBuilder.BuildRampMesh(in footprint, tile.transform.position, topRoundMetres, footRoundMetres, baseHeightAtWorldXZ, groundHeightAtWorldXZ);
         Mesh resolved = ResolveMeshForChild(tile, filter.sharedMesh, rampMesh, RampMeshNamePrefix + rampIndex, persist);
         filter.sharedMesh = resolved;
         meshRenderer.sharedMaterials = new Material[] { groundMaterial, wallMaterial };

@@ -389,7 +389,7 @@ MonoBehaviour:
   cellsPerSide: 100
   layerCount: 1
   coordinate: {x: 1, y: 1}
-  bakedFromTileDataRevision: 29
+  bakedFromTileDataRevision: 41
   bakedFromBlockerHash: 1550489685
 --- !u!64 &407398115
 MeshCollider:

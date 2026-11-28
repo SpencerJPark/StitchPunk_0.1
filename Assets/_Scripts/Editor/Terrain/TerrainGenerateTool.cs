@@ -98,8 +98,9 @@ public static class TerrainGenerateTool
     }
 
     // Only objects named GeneratedTerraceRamp are replaced; hand-placed ramps keep their own names.
-    // Parked: a 2.8 m worn-gap notch leaves holes where it meets a freeform wall (Natural Cliffs wave 4 hole check). Planner still plans them.
-    const bool SpawnGeneratedWornGapRamps = false;
+    // Sunken worn gaps stay parked: the planner puts their lower end on level 0, so the ramp floats over the pit (wave 4b).
+    const bool SpawnGeneratedWornGapRamps = true;
+    const bool SpawnSunkenWornGapRamps = false;
 
     static void ReplaceGeneratedRamps(TerrainTile tile, TerrainTileData tileData, List<TerraceRampPlacement> placements)
     {
@@ -115,6 +116,7 @@ public static class TerrainGenerateTool
         foreach (TerraceRampPlacement placement in placements)
         {
             if (placement.isLowStepWornGap && !SpawnGeneratedWornGapRamps) continue;
+            if (placement.isLowStepWornGap && placement.lowerLevel < 0 && !SpawnSunkenWornGapRamps) continue;
             GameObject rampObject = new GameObject(GeneratedRampName);
             TerraceRamp ramp = rampObject.AddComponent<TerraceRamp>();
             ramp.kind = placement.kind;

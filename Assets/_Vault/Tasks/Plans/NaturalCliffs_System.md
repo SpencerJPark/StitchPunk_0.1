@@ -1,5 +1,5 @@
 ---
-status: BUILDING 2026-11-28, waves 0-4 done (wave 4 partial: worn gaps parked, tall ramps 0); wave 4b ramp notches + wave 5 next. S2 Play spike owed to the owner. Resume with `Spencer/NaturalCliffs_Resume_Wave3.md` section 3 and this log. Supersedes TerraceCliffEdges_System.md from wave 4 on.
+status: BUILDING 2026-11-28, waves 0-4 done, wave 4b part 1 done (plateau worn gaps live, 0 holes; sunken gaps, AlongCliff, tall ramps still parked); 4b part 2 (tall + AlongCliff) then wave 5 next. S2 Play spike owed to the owner. Resume with `Spencer/NaturalCliffs_Resume_Wave4b.md` and this log. Supersedes TerraceCliffEdges_System.md from wave 4 on.
 parent: Tasks/Plans/Terraces_System.md (levels, walls, ramps), Tasks/Plans/TerrainEdgeTiles_System.md (ground biome edge tiles, unchanged)
 references: Tasks/References/Edges1.png (tall cliff, full profile), Edges2.png (low ledge that fades in and out, left side; short cliff, right), Edges3.png (soft low edge, apron under the lip)
 good earlier capture: Tasks/Captures/Terraces_2026-11-21/r4_06_gameplay_camera.png (rounded freeform outline, striated wall: the starting point)
@@ -451,3 +451,24 @@ Guards measured on a capture by a small script, not by eye:
   **Next (wave 4b):** ramp notch vs freeform wall in `TerraceRampMeshBuilder` / the wall clip. Use the per-ramp magenta check
   (sheet_04_gap_holes.png) as the gate; then re-enable gaps, AlongCliff, and tall ramps (re-check the 1 m rule).
   Sheets `sheet_04_wave4.png`, `sheet_04_gap_holes.png`, `sheet_U1_generate_tab.png`. ⏸ posted, continued.
+- 2026-11-28 Wave 4b part 1 done. **Plateau worn gaps are live, 0 holes.** Diagnosis, from numbers first:
+  - the hole check had false positives: a camera inside a hill, and sky past the 3x3 edge. It now projects each magenta pixel onto
+    the ramp plane, counts it only within 10 m of the ramp and inside |x|,|z| <= 148, and skips views whose camera is under the
+    terrain;
+  - 5 of the 6 real holes were **sunken (L-1) gaps**. The planner's `stepKindMask` was `1 << (magnitude - 1)` for both signs, but
+    `IsHillStep` keeps sunken steps in bits 3..5. So a sunken region read Tall, was "demoted to Low" by setting bit 0, and the mesh
+    kept a ~2.5 m wall behind a 2.8 m gap. Orchestrator one-liners: the mask follows the IsHillStep layout, and
+    `CollectRampFootprints` reads the step kind at the lower end for a sunken ramp;
+  - W4b-R worker (`TerraceRampMeshBuilder` 6-arg `BuildRampMesh`): the ramp surface follows the base terrain, and every edge gets a
+    double-sided skirt from the ramp edge to the terraced ground 0.35 m outward. Skirts only go upward where a side/end wall already
+    exists. The 4-arg overload is unchanged.
+  Result on the 3x3: 11 plateau gaps, holes(>60px) = 0, worst pinhole 38 px, plan 0 hole pixels. **Sunken worn gaps stay parked**
+  (`TerrainGenerateTool.SpawnSunkenWornGapRamps = false`). On the worst one the footprint's lower end is 4.99 m and its upper end
+  4.88 m over a 4.18 m pit floor: the planner puts the lower end on level 0, so the ramp floats. That is a planner bug for part 2.
+  Lengthening the gap run to 4 m did not help (reverted; NC-D12 stays at 2.8 m).
+  **G2d speed:** each `Parallel.For` partition evaluates its own `AnimationCurve` clones (ThreadStatic; `ForEachRow`,
+  `UseParallelRows`). Mask 4.7 -> 0.4 s and terraces 3.5 -> 0.8 s on tiles 0_0 and 1_1, with 0 byte diffs against the serial output
+  (two runs each). 3x3 regenerate 69.5 -> 28-40 s. G2 per-tile reroll not re-timed.
+  Fixtures (reflection runner, 5 files): 36 pass, 1 Inconclusive (known), 1 fail: the stale
+  `TerracedTileEmitsNoWallVertexInsideARampFootprint` (C1). Sheets `sheet_04b_diagnose.png`, `sheet_04b_after_bitfix.png`,
+  `sheet_04b_skirts.png`. ⏸ posted, continued.

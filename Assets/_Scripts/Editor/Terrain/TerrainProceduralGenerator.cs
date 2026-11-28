@@ -18,10 +18,66 @@ public struct TerraceRampPlacement
 
 public static class TerrainProceduralGenerator
 {
-    // Serial on purpose: Parallel.For raced (AnimationCurve.Evaluate in the height remap), giving different masks run to run.
-    private static void ForEachRowInOrder(int firstRow, int rowEndExclusive, System.Action<int> rowBody)
+    public static bool UseParallelRows = true;
+
+    [System.ThreadStatic] private static AnimationCurve threadHeightRemapClone;
+    [System.ThreadStatic] private static AnimationCurve threadMountainProfileClone;
+
+    private static float EvaluateHeightRemap(TerrainGenerationProfile profile, float normalised)
     {
-        for (int rowIndex = firstRow; rowIndex < rowEndExclusive; rowIndex++) rowBody(rowIndex);
+        if (profile.heightRemap == null) return normalised;
+        AnimationCurve curve = threadHeightRemapClone != null ? threadHeightRemapClone : profile.heightRemap;
+        return curve.Evaluate(normalised);
+    }
+
+    private static float EvaluateMountainProfile(TerrainGenerationProfile profile, float closeness)
+    {
+        if (profile.mountainProfile == null) return closeness;
+        AnimationCurve curve = threadMountainProfileClone != null ? threadMountainProfileClone : profile.mountainProfile;
+        return curve.Evaluate(closeness);
+    }
+
+    private static AnimationCurve CloneCurve(AnimationCurve source)
+    {
+        if (source == null) return null;
+        AnimationCurve clone = new AnimationCurve(source.keys);
+        clone.preWrapMode = source.preWrapMode;
+        clone.postWrapMode = source.postWrapMode;
+        return clone;
+    }
+
+    // AnimationCurve.Evaluate keeps an internal cache and is not thread-safe, so each partition evaluates its own clones.
+    private static void ForEachRow(TerrainGenerationProfile profile, int firstRow, int rowEndExclusive, System.Action<int> rowBody)
+    {
+        if (!UseParallelRows)
+        {
+            for (int rowIndex = firstRow; rowIndex < rowEndExclusive; rowIndex++) rowBody(rowIndex);
+            return;
+        }
+
+        int partitionCount = Mathf.Clamp(System.Environment.ProcessorCount, 1, 16);
+        AnimationCurve[] heightRemapClones = new AnimationCurve[partitionCount];
+        AnimationCurve[] mountainProfileClones = new AnimationCurve[partitionCount];
+        for (int partitionIndex = 0; partitionIndex < partitionCount; partitionIndex++)
+        {
+            heightRemapClones[partitionIndex] = CloneCurve(profile.heightRemap);
+            mountainProfileClones[partitionIndex] = CloneCurve(profile.mountainProfile);
+        }
+
+        System.Threading.Tasks.Parallel.For(0, partitionCount, (int partitionIndex) =>
+        {
+            threadHeightRemapClone = heightRemapClones[partitionIndex];
+            threadMountainProfileClone = mountainProfileClones[partitionIndex];
+            try
+            {
+                for (int rowIndex = firstRow + partitionIndex; rowIndex < rowEndExclusive; rowIndex += partitionCount) rowBody(rowIndex);
+            }
+            finally
+            {
+                threadHeightRemapClone = null;
+                threadMountainProfileClone = null;
+            }
+        });
     }
 
     private const int SamplesPerSide = TerrainTileData.HeightSamplesPerSide;
@@ -70,7 +126,7 @@ public static class TerrainProceduralGenerator
         if (maxAmplitude > 0f)
         {
             float normalised = Mathf.Clamp01(noiseSum / (2f * maxAmplitude) + 0.5f);
-            float remapped = profile.heightRemap != null ? profile.heightRemap.Evaluate(normalised) : normalised;
+            float remapped = EvaluateHeightRemap(profile, normalised);
             noiseHeight = (remapped - 0.5f) * 2f * maxAmplitude;
         }
 
@@ -82,7 +138,7 @@ public static class TerrainProceduralGenerator
             if (distanceToCentre < profile.mountainRadiusMetres)
             {
                 float closeness = 1f - distanceToCentre / profile.mountainRadiusMetres;
-                float profileValue = profile.mountainProfile != null ? profile.mountainProfile.Evaluate(closeness) : closeness;
+                float profileValue = EvaluateMountainProfile(profile, closeness);
                 height += profile.mountainHeightMetres * profileValue;
             }
         }
@@ -100,7 +156,7 @@ public static class TerrainProceduralGenerator
                 if (distanceToFeature >= mountain.radiusMetres) continue;
 
                 float closeness = 1f - distanceToFeature / mountain.radiusMetres;
-                float profileValue = profile.mountainProfile != null ? profile.mountainProfile.Evaluate(closeness) : closeness;
+                float profileValue = EvaluateMountainProfile(profile, closeness);
                 tallestContribution = Mathf.Max(tallestContribution, mountain.heightMetres * profileValue);
             }
             height += tallestContribution;
@@ -169,7 +225,7 @@ public static class TerrainProceduralGenerator
         float minCornerZ = tileCoordinate.y * TileSizeMetres - TileSizeMetres * 0.5f;
         float texelSizeMetres = TileSizeMetres / resolution;
 
-        ForEachRowInOrder(0, resolution, (int texelZ) =>
+        ForEachRow(profile, 0, resolution, (int texelZ) =>
         {
             for (int texelX = 0; texelX < resolution; texelX++)
             {
@@ -280,7 +336,7 @@ public static class TerrainProceduralGenerator
         float rasterWindowOriginZ = tileCoordinate.y * 100f - 50f - TerracePlateauRaster.WindowMarginCells;
         int[] worldFieldCapGrid = new int[rasterWindowSide * rasterWindowSide];
         int[] rolledFieldCapGrid = new int[rasterWindowSide * rasterWindowSide];
-        ForEachRowInOrder(0, rasterWindowSide, (int windowZ) =>
+        ForEachRow(profile, 0, rasterWindowSide, (int windowZ) =>
         {
             for (int windowX = 0; windowX < rasterWindowSide; windowX++)
             {
@@ -309,7 +365,7 @@ public static class TerrainProceduralGenerator
 
         sbyte[] windowLevels = new sbyte[windowSide * windowSide];
         // Core cells are pure math and write only their own index, the halo cells call neighbourLookup and are filled below.
-        ForEachRowInOrder(0, windowSide, (int cellZ) =>
+        ForEachRow(profile, 0, windowSide, (int cellZ) =>
         {
             for (int cellX = 0; cellX < windowSide; cellX++)
             {
@@ -497,7 +553,8 @@ public static class TerrainProceduralGenerator
                 int outlineCells = 0;
                 int coreCellCount = 0;
                 int lowStepCellCount = 0;
-                int stepKindMask = 1 << (magnitude - 1);
+                // Same bit layout as TerrainTileData.IsHillStep: sunken steps live in bits 3..5.
+                int stepKindMask = 1 << (regionLevel > 0 ? magnitude - 1 : magnitude + 2);
                 for (int regionIndex = 0; regionIndex < regionCount; regionIndex++)
                 {
                     int cellX = regionCells[regionIndex] % windowSide;

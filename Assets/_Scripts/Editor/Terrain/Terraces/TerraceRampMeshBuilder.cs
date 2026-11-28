@@ -43,6 +43,8 @@ public static class TerraceRampMeshBuilder
     private const int VerticesPerWallRow = (FilletSteps + 1) * 2 + 2;
     private const float ProfiledVertexUvOffset = 10f;
     private const float WallRowsPerMetre = 2f;
+    private const float SkirtSampleSpacingMetres = 0.5f;
+    private const float SkirtOutwardProbeMetres = 0.35f;
     public const float AlongCliffLandingMetres = 2f;
 
     // AlongCliff keeps no wall on the cliff side: left of forward when it rises to the right, right of forward otherwise.
@@ -99,6 +101,27 @@ public static class TerraceRampMeshBuilder
         float topRoundMetres,
         float footRoundMetres)
     {
+        return BuildRampMesh(ramp, tileOrigin, topRoundMetres, footRoundMetres, null, null);
+    }
+
+    // baseHeight follows the terrain under the ramp; groundHeight (terrace level included) drives the edge skirts.
+    public static Mesh BuildRampMesh(
+        in TerraceRampFootprint ramp,
+        Vector3 tileOrigin,
+        float topRoundMetres,
+        float footRoundMetres,
+        System.Func<Vector2, float> baseHeightAtWorldXZ,
+        System.Func<Vector2, float> groundHeightAtWorldXZ)
+    {
+        float baseAtLowerEnd = 0f;
+        float baseAtUpperEnd = 0f;
+        if (baseHeightAtWorldXZ != null)
+        {
+            Vector2 endForward = ForwardXZ(ramp.yawDegrees);
+            baseAtLowerEnd = baseHeightAtWorldXZ(ramp.centre - endForward * (ramp.runMetres * 0.5f));
+            baseAtUpperEnd = baseHeightAtWorldXZ(ramp.centre + endForward * (ramp.runMetres * 0.5f));
+        }
+
         int cellsAlong = Mathf.Max(1, Mathf.CeilToInt(ramp.runMetres));
         int cellsAcross = Mathf.Max(1, Mathf.CeilToInt(ramp.widthMetres));
         int rowCount = cellsAlong + 1;
@@ -131,7 +154,8 @@ public static class TerraceRampMeshBuilder
                 float acrossFraction = (float)column / cellsAcross;
                 Vector2 worldXZ = PointXZ(ramp, forward, right, alongFraction, acrossFraction);
                 int vertexIndex = row * columnCount + column;
-                positions[vertexIndex] = ToTileLocal(worldXZ, HeightAt(ramp, alongFraction), tileOrigin);
+                float surfaceHeight = AdjustedHeightAt(ramp, alongFraction, worldXZ, baseHeightAtWorldXZ, baseAtLowerEnd, baseAtUpperEnd);
+                positions[vertexIndex] = ToTileLocal(worldXZ, surfaceHeight, tileOrigin);
                 normals[vertexIndex] = surfaceNormal;
                 Vector2 surfaceUv = worldXZ / TileSizeMetres;
                 uvs[vertexIndex] = new Vector4(surfaceUv.x, surfaceUv.y, 0f, 0f);
@@ -173,10 +197,10 @@ public static class TerraceRampMeshBuilder
             for (int row = 0; row < wallRowCount; row++)
             {
                 float alongFraction = (float)row / wallCellsAlong;
-                float topHeight = HeightAt(ramp, alongFraction);
+                Vector2 worldXZ = PointXZ(ramp, forward, right, alongFraction, acrossFraction);
+                float topHeight = AdjustedHeightAt(ramp, alongFraction, worldXZ, baseHeightAtWorldXZ, baseAtLowerEnd, baseAtUpperEnd);
                 float wallHeight = topHeight - ramp.lowerHeight;
                 wallHeights[row] = wallHeight;
-                Vector2 worldXZ = PointXZ(ramp, forward, right, alongFraction, acrossFraction);
                 float alongMetres = alongFraction * edgeLength;
                 float topRound = Mathf.Min(topRoundMetres, 0.3f * wallHeight);
                 float footRound = Mathf.Min(footRoundMetres, 0.3f * wallHeight);
@@ -252,25 +276,26 @@ public static class TerraceRampMeshBuilder
             {
                 float acrossFraction = (float)row / endWallCells;
                 Vector2 worldXZ = PointXZ(ramp, forward, right, 1f, acrossFraction);
+                float endTopHeight = AdjustedHeightAt(ramp, 1f, worldXZ, baseHeightAtWorldXZ, baseAtLowerEnd, baseAtUpperEnd);
                 float acrossMetres = acrossFraction * ramp.widthMetres;
                 int rowBase = endWallBase + row * VerticesPerWallRow;
                 for (int step = 0; step <= FilletSteps; step++)
                 {
                     float angle = (float)step / FilletSteps * Mathf.PI * 0.5f;
-                    WriteWallVertex(positions, normals, uvs, rowBase + step, worldXZ, ramp.upperHeight, tileOrigin, forward,
+                    WriteWallVertex(positions, normals, uvs, rowBase + step, worldXZ, endTopHeight, tileOrigin, forward,
                         topRound * angle, topRound * Mathf.Sin(angle), topRound * (1f - Mathf.Cos(angle)),
                         Mathf.Sin(angle), Mathf.Cos(angle), acrossMetres, topGrassEndArc, footGrassStartArc);
                 }
 
-                WriteWallVertex(positions, normals, uvs, rowBase + FilletSteps + 1, worldXZ, ramp.upperHeight, tileOrigin, forward,
+                WriteWallVertex(positions, normals, uvs, rowBase + FilletSteps + 1, worldXZ, endTopHeight, tileOrigin, forward,
                     topGrassEndArc, topRound, topRound, faceNormalOut, faceNormalUp, acrossMetres, topGrassEndArc, footGrassStartArc);
-                WriteWallVertex(positions, normals, uvs, rowBase + FilletSteps + 2, worldXZ, ramp.upperHeight, tileOrigin, forward,
+                WriteWallVertex(positions, normals, uvs, rowBase + FilletSteps + 2, worldXZ, endTopHeight, tileOrigin, forward,
                     footGrassStartArc, topRound + batter, endWallHeight - footRound, faceNormalOut, faceNormalUp,
                     acrossMetres, topGrassEndArc, footGrassStartArc);
                 for (int step = 0; step <= FilletSteps; step++)
                 {
                     float angle = (float)step / FilletSteps * Mathf.PI * 0.5f;
-                    WriteWallVertex(positions, normals, uvs, rowBase + FilletSteps + 3 + step, worldXZ, ramp.upperHeight, tileOrigin, forward,
+                    WriteWallVertex(positions, normals, uvs, rowBase + FilletSteps + 3 + step, worldXZ, endTopHeight, tileOrigin, forward,
                         footGrassStartArc + footRound * angle,
                         topRound + batter + footRound * (1f - Mathf.Cos(angle)),
                         endWallHeight - footRound + footRound * Mathf.Sin(angle),
@@ -296,9 +321,105 @@ public static class TerraceRampMeshBuilder
             }
         }
 
+        if (baseHeightAtWorldXZ != null)
+        {
+            RecomputeSurfaceNormals(positions, normals, rowCount, columnCount);
+        }
+
+        if (groundHeightAtWorldXZ != null)
+        {
+            List<Vector3> skirtPositions = new List<Vector3>();
+            List<Vector3> skirtNormals = new List<Vector3>();
+            List<int> skirtTriangles = new List<int>();
+            for (int edge = 0; edge < 4; edge++)
+            {
+                // 0 left, 1 right, 2 lower end, 3 upper end.
+                bool isSideEdge = edge < 2;
+                bool edgeHasWall = isSideEdge ? HasSideWall(ramp, edge == 1) : (edge == 3 && HasEndWall(ramp));
+                Vector2 outwardXZ = edge == 0 ? -right : edge == 1 ? right : edge == 2 ? -forward : forward;
+                float edgeLengthMetres = isSideEdge ? ramp.runMetres : ramp.widthMetres;
+                int segmentCount = Mathf.Max(1, Mathf.CeilToInt(edgeLengthMetres / SkirtSampleSpacingMetres));
+                float[] sampleTops = new float[segmentCount + 1];
+                float[] sampleBottoms = new float[segmentCount + 1];
+                bool[] sampleEmits = new bool[segmentCount + 1];
+                Vector2[] samplePoints = new Vector2[segmentCount + 1];
+                for (int sample = 0; sample <= segmentCount; sample++)
+                {
+                    float fraction = (float)sample / segmentCount;
+                    float alongFraction = edge == 2 ? 0f : edge == 3 ? 1f : fraction;
+                    float acrossFraction = edge == 0 ? 0f : edge == 1 ? 1f : fraction;
+                    Vector2 edgeXZ = PointXZ(ramp, forward, right, alongFraction, acrossFraction);
+                    float rampEdgeHeight = AdjustedHeightAt(ramp, alongFraction, edgeXZ, baseHeightAtWorldXZ, baseAtLowerEnd, baseAtUpperEnd);
+                    float groundHeight = groundHeightAtWorldXZ(edgeXZ + outwardXZ * SkirtOutwardProbeMetres);
+                    samplePoints[sample] = edgeXZ;
+                    sampleTops[sample] = Mathf.Max(rampEdgeHeight, groundHeight) + 0.02f;
+                    sampleBottoms[sample] = Mathf.Min(rampEdgeHeight, groundHeight) - 0.3f;
+                    sampleEmits[sample] = !edgeHasWall || groundHeight > rampEdgeHeight;
+                }
+
+                Vector3 outwardNormal = new Vector3(outwardXZ.x, 0f, outwardXZ.y);
+                for (int segment = 0; segment < segmentCount; segment++)
+                {
+                    if (!sampleEmits[segment] && !sampleEmits[segment + 1])
+                    {
+                        continue;
+                    }
+
+                    Vector3 topNear = ToTileLocal(samplePoints[segment], sampleTops[segment], tileOrigin);
+                    Vector3 bottomNear = ToTileLocal(samplePoints[segment], sampleBottoms[segment], tileOrigin);
+                    Vector3 topFar = ToTileLocal(samplePoints[segment + 1], sampleTops[segment + 1], tileOrigin);
+                    Vector3 bottomFar = ToTileLocal(samplePoints[segment + 1], sampleBottoms[segment + 1], tileOrigin);
+                    bool frontIsCounterClockwise = Vector3.Dot(Vector3.Cross(bottomNear - topNear, topFar - topNear), outwardNormal) >= 0f;
+                    for (int faceSide = 0; faceSide < 2; faceSide++)
+                    {
+                        int firstIndex = vertexCount + skirtPositions.Count;
+                        Vector3 faceNormal = faceSide == 0 ? outwardNormal : -outwardNormal;
+                        skirtPositions.Add(topNear);
+                        skirtPositions.Add(bottomNear);
+                        skirtPositions.Add(topFar);
+                        skirtPositions.Add(bottomFar);
+                        for (int corner = 0; corner < 4; corner++)
+                        {
+                            skirtNormals.Add(faceNormal);
+                        }
+
+                        bool windCounterClockwise = frontIsCounterClockwise == (faceSide == 0);
+                        skirtTriangles.Add(firstIndex);
+                        skirtTriangles.Add(windCounterClockwise ? firstIndex + 1 : firstIndex + 2);
+                        skirtTriangles.Add(windCounterClockwise ? firstIndex + 2 : firstIndex + 1);
+                        skirtTriangles.Add(firstIndex + 2);
+                        skirtTriangles.Add(windCounterClockwise ? firstIndex + 1 : firstIndex + 3);
+                        skirtTriangles.Add(windCounterClockwise ? firstIndex + 3 : firstIndex + 1);
+                    }
+                }
+            }
+
+            if (skirtPositions.Count > 0)
+            {
+                int skirtVertexCount = skirtPositions.Count;
+                Vector3[] allPositions = new Vector3[vertexCount + skirtVertexCount];
+                Vector3[] allNormals = new Vector3[vertexCount + skirtVertexCount];
+                Vector4[] allUvs = new Vector4[vertexCount + skirtVertexCount];
+                positions.CopyTo(allPositions, 0);
+                normals.CopyTo(allNormals, 0);
+                uvs.CopyTo(allUvs, 0);
+                for (int skirtVertex = 0; skirtVertex < skirtVertexCount; skirtVertex++)
+                {
+                    allPositions[vertexCount + skirtVertex] = skirtPositions[skirtVertex];
+                    allNormals[vertexCount + skirtVertex] = skirtNormals[skirtVertex];
+                    allUvs[vertexCount + skirtVertex] = new Vector4(0f, allPositions[vertexCount + skirtVertex].y, 0f, 0f);
+                }
+
+                positions = allPositions;
+                normals = allNormals;
+                uvs = allUvs;
+                wallTriangles.AddRange(skirtTriangles);
+            }
+        }
+
         Mesh mesh = new Mesh();
         mesh.name = "TerraceRamp";
-        mesh.indexFormat = vertexCount <= 65535 ? IndexFormat.UInt16 : IndexFormat.UInt32;
+        mesh.indexFormat = positions.Length <= 65535 ? IndexFormat.UInt16 : IndexFormat.UInt32;
         mesh.vertices = positions;
         mesh.normals = normals;
         mesh.SetUVs(0, new List<Vector4>(uvs));
@@ -494,6 +615,49 @@ public static class TerraceRampMeshBuilder
 
         float slopeFraction = Mathf.Clamp01(alongFraction * ramp.runMetres / slopeRunMetres);
         return Mathf.Lerp(ramp.lowerHeight, ramp.upperHeight, slopeFraction);
+    }
+
+    private static float AdjustedHeightAt(
+        in TerraceRampFootprint ramp,
+        float alongFraction,
+        Vector2 worldXZ,
+        System.Func<Vector2, float> baseHeightAtWorldXZ,
+        float baseAtLowerEnd,
+        float baseAtUpperEnd)
+    {
+        float height = HeightAt(ramp, alongFraction);
+        if (baseHeightAtWorldXZ == null)
+        {
+            return height;
+        }
+
+        return height + baseHeightAtWorldXZ(worldXZ) - Mathf.Lerp(baseAtLowerEnd, baseAtUpperEnd, alongFraction);
+    }
+
+    private static void RecomputeSurfaceNormals(Vector3[] positions, Vector3[] normals, int rowCount, int columnCount)
+    {
+        for (int row = 0; row < rowCount; row++)
+        {
+            int previousRow = Mathf.Max(row - 1, 0);
+            int nextRow = Mathf.Min(row + 1, rowCount - 1);
+            for (int column = 0; column < columnCount; column++)
+            {
+                int previousColumn = Mathf.Max(column - 1, 0);
+                int nextColumn = Mathf.Min(column + 1, columnCount - 1);
+                Vector3 alongTangent = positions[nextRow * columnCount + column] - positions[previousRow * columnCount + column];
+                Vector3 acrossTangent = positions[row * columnCount + nextColumn] - positions[row * columnCount + previousColumn];
+                Vector3 normal = Vector3.Cross(alongTangent, acrossTangent);
+                if (normal.y < 0f)
+                {
+                    normal = -normal;
+                }
+
+                if (normal.sqrMagnitude > 1e-12f)
+                {
+                    normals[row * columnCount + column] = normal.normalized;
+                }
+            }
+        }
     }
 
     private static float LandingMetres(in TerraceRampFootprint ramp)
