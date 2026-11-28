@@ -1,7 +1,4 @@
 """Usage: python Tools/terrain_edge_mock/export_transition_atlas.py [SetName ...] [--preview-dir PATH]
-       python Tools/terrain_edge_mock/export_transition_atlas.py --cliff Dirt|Grass|Forest|Stone|all [--preview-dir PATH]
---cliff writes T_EdgeAtlas_<Biome>Rim.png and ...Foot.png: the biome edge art with coverage eroded away from the cell-side
-midpoint (rim 0.225 m, foot 0.675 m) and the ink re-stamped along the new silhouette.
 Default sets: GrassOverDirt ForestOverGrass StoneOverDirt. Reads Docs/Terrain/EdgeTileExamples/T_Edge_<Set>_v0/_v1.png,
 writes Assets/PaintedGround/Textures/EdgeTiles/T_EdgeAtlas_<Set>.png (and a .png.meta cloned from the GrassOverDirt one when missing).
 
@@ -29,8 +26,6 @@ DEFAULT_SETS = ["GrassOverDirt", "ForestOverGrass", "StoneOverDirt"]
 PIXELS_PER_METRE = 64.0
 RIM_OFFSET_METRES = 0.225  # rim silhouette mean line sits at C - r_top/2 with r_top = 0.45 m (CE-D4)
 FOOT_OFFSET_METRES = 0.675  # foot silhouette mean line sits at C + r_top + r_foot/2 = 0.675 m from the side midpoint (CE-D4)
-CLIFF_BIOMES = ["Dirt", "Grass", "Forest", "Stone"]
-CLIFF_SOURCE_SET = {"Dirt": "GrassOverDirt", "Grass": "GrassOverDirt", "Forest": "ForestOverGrass", "Stone": "StoneOverDirt"}
 DIRT_SIDE_LOCK_PIXELS = 12.0
 DIRT_SIDE_BLEND_PIXELS = 40.0
 DIRT_BLUR_SIGMA_PIXELS = 7.0
@@ -209,33 +204,6 @@ def offset_case_piece(case_index, coverage, ink, offset_metres):
     return blended_coverage.astype(np.float32), (transferred_ink * side_weight).astype(np.float32)
 
 
-def check_source_orientation(biome):
-    # Case 3 covers the top half: the rotated source must be covered 0.5 m above the midline and uncovered 0.5 m below it.
-    piece_name, quarter_turns = CASE_TABLE[3]
-    coverage = np.rot90(cliff_source_piece(biome, 0, piece_name)[0], -quarter_turns)
-    middle_column = coverage.shape[1] // 2
-    covered_value = float(coverage[int(round((2.0 - 1.5) * 128)), middle_column])
-    uncovered_value = float(coverage[int(round((2.0 - 0.5) * 128)), middle_column])
-    assert covered_value > 0.5 > uncovered_value, (biome, covered_value, uncovered_value)
-
-
-_cliff_source_cache = {}
-
-
-def cliff_source_piece(biome, variant, piece_name):
-    key = (biome, variant, piece_name)
-    if key not in _cliff_source_cache:
-        source_set = CLIFF_SOURCE_SET[biome]
-        strip_key = (source_set, variant)
-        if strip_key not in _cliff_source_cache:
-            _cliff_source_cache[strip_key] = pack_strip(os.path.join(INPUT_DIRECTORY, "T_Edge_%s_v%d.png" % (source_set, variant)))
-        coverage, ink = _cliff_source_cache[strip_key][piece_name]
-        if biome == "Dirt":
-            coverage, ink = smoothed_dirt_source(coverage, 1000 + variant * 10 + PIECES.index(piece_name))
-        _cliff_source_cache[key] = (coverage, ink)
-    return _cliff_source_cache[key]
-
-
 def check_corner_coverage(atlas):
     inset = 4
     corner_positions = {1: (inset, inset), 2: (CELL_PIXELS - 1 - inset, inset), 4: (CELL_PIXELS - 1 - inset, CELL_PIXELS - 1 - inset), 8: (inset, CELL_PIXELS - 1 - inset)}
@@ -316,38 +284,6 @@ def write_preview(atlas, preview_path):
     image.save(preview_path)
 
 
-def export_cliff_set(biome, role, preview_directory):
-    offset_metres = RIM_OFFSET_METRES if role == "Rim" else FOOT_OFFSET_METRES
-    offset_pixels_at_cell_scale = offset_metres * PIXELS_PER_METRE
-    check_source_orientation(biome)
-    set_name = biome + role
-    output_path = os.path.join(OUTPUT_DIRECTORY, "T_EdgeAtlas_%s.png" % set_name)
-    atlas = np.zeros((CELL_PIXELS * 4, CELL_PIXELS * 8, 3), dtype=np.float32)
-    for variant in range(VARIANT_COUNT):
-        source_variant = variant if role == "Rim" else 1 - variant  # foot swaps variants so rim and foot lobes differ
-        for case_index in range(1, 15):
-            piece_name, quarter_turns = CASE_TABLE[case_index]
-            source_coverage, source_ink = cliff_source_piece(biome, source_variant, piece_name)
-            coverage, ink = offset_case_piece(case_index, np.rot90(source_coverage, -quarter_turns), np.rot90(source_ink, -quarter_turns), offset_metres)
-            origin_x = (case_index % 8) * CELL_PIXELS
-            origin_y = (case_index // 8 + 2 * variant) * CELL_PIXELS
-            cell = atlas[origin_y:origin_y + CELL_PIXELS, origin_x:origin_x + CELL_PIXELS]
-            cell[..., 0] = downsample(coverage)
-            cell[..., 2] = downsample(ink)
-        full_origin_x = (15 % 8) * CELL_PIXELS
-        full_origin_y = (15 // 8 + 2 * variant) * CELL_PIXELS
-        atlas[full_origin_y:full_origin_y + CELL_PIXELS, full_origin_x:full_origin_x + CELL_PIXELS, 0] = 1.0
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    Image.fromarray((atlas * 255 + 0.5).astype(np.uint8), "RGB").save(output_path)
-    check_corner_coverage(atlas)
-    print(set_name, "self-check passed: corner coverage matches case bits for all 16 cases x 2 variants")
-    check_side_crossings(atlas, offset_pixels_at_cell_scale, set_name)
-    if preview_directory:
-        write_preview(atlas, os.path.join(preview_directory, "atlas_preview_%s.png" % set_name))
-    ensure_meta(output_path)
-    print("wrote", output_path, "meanR %.4f meanB %.4f" % (atlas[..., 0].mean(), atlas[..., 2].mean()))
-
-
 def export_set(set_name, preview_directory=None):
     input_prefix = "T_Edge_" + set_name
     output_path = os.path.join(OUTPUT_DIRECTORY, "T_EdgeAtlas_%s.png" % set_name)
@@ -381,14 +317,8 @@ def export_set(set_name, preview_directory=None):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("sets", nargs="*")
-    parser.add_argument("--cliff", choices=CLIFF_BIOMES + ["all"])
     parser.add_argument("--preview-dir", default=None)
     arguments = parser.parse_args()
-    if arguments.cliff:
-        for biome in (CLIFF_BIOMES if arguments.cliff == "all" else [arguments.cliff]):
-            for role in ("Rim", "Foot"):
-                export_cliff_set(biome, role, arguments.preview_dir)
-        return
     for set_name in (arguments.sets or DEFAULT_SETS):
         export_set(set_name, arguments.preview_dir)
 

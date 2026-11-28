@@ -2,11 +2,9 @@
 using System;
 using UnityEngine;
 
-// Plateau outline is the smooth case-arc contour (CE-D1) on a 2 m dual grid: TerraceCaseContour lines and quarter circles.
 public static class TerraceEdgeTileOutline
 {
     private const int TileCells = TerrainTileData.TerraceCellsPerSide;
-    private const float CellMetres = 2f;
     private const int CellsPerSide = 50;
     private const int CornersPerSide = CellsPerSide + 1;
     private const int PaddingCells = 2;
@@ -33,43 +31,6 @@ public static class TerraceEdgeTileOutline
         }
 
         return cornerLevels;
-    }
-
-    // Same layout, sign and units as TerraceLevelField.BuildSignedDistance (side = 100 * spm + 1, z * side + x, positive inside).
-    public static float[] BuildSignedDistanceFromCaseContour(
-        TerrainTileData data,
-        int threshold,
-        Func<Vector2Int, TerrainTileData> neighbourLookup,
-        int samplesPerMetre)
-    {
-        int side = TileCells * samplesPerMetre + 1;
-        float[] signedDistance = new float[side * side];
-        int[] cornerLevels = BuildCornerLevels(data, neighbourLookup);
-
-        for (int sampleZ = 0; sampleZ < side; sampleZ++)
-        {
-            float localZ = sampleZ / (float)samplesPerMetre;
-            int cellZ = Math.Min((int)(localZ / CellMetres), CellsPerSide - 1);
-            float cellLocalZ = localZ / CellMetres - cellZ;
-            for (int sampleX = 0; sampleX < side; sampleX++)
-            {
-                float localX = sampleX / (float)samplesPerMetre;
-                int cellX = Math.Min((int)(localX / CellMetres), CellsPerSide - 1);
-                float cellLocalX = localX / CellMetres - cellX;
-
-                int caseIndex = TerraceCaseContour.CaseFor(
-                    cornerLevels[(cellZ + 1) * CornersPerSide + cellX],
-                    cornerLevels[(cellZ + 1) * CornersPerSide + cellX + 1],
-                    cornerLevels[cellZ * CornersPerSide + cellX + 1],
-                    cornerLevels[cellZ * CornersPerSide + cellX],
-                    threshold);
-
-                signedDistance[sampleZ * side + sampleX] = TerraceCaseContour.SignedDistanceInCell(
-                    caseIndex, new Vector2(cellLocalX * CellMetres, cellLocalZ * CellMetres));
-            }
-        }
-
-        return signedDistance;
     }
 
     private static int MajorityTiesHigher(int[] levels)

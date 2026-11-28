@@ -22,8 +22,6 @@ public static class TerraceTileMeshBuilder
     public static List<TerraceOutlineChain> LastBuildOutlineChains = new List<TerraceOutlineChain>();
     public static int LastBuildMultiCrossingSubcells;
 
-    // NC-D1: the rounded/blurred field is the outline again; the case-arc contour is deleted in NC-D18.
-    private const bool UseCaseContourOutline = false;
     private const int SamplesPerMetre = 4;
     private const int CellsPerSide = 100;
     private const int SamplesPerSide = CellsPerSide * SamplesPerMetre + 1;
@@ -46,10 +44,8 @@ public static class TerraceTileMeshBuilder
         bool anyLevelIsNonZero = false;
         for (int threshold = firstThreshold; threshold <= lastThreshold; threshold++)
         {
-            float[] field = UseCaseContourOutline
-                ? TerraceEdgeTileOutline.BuildSignedDistanceFromCaseContour(data, threshold, neighbourLookup, SamplesPerMetre)
-                : TerraceLevelField.BuildSignedDistance(
-                    data, threshold, world.terraceCornerRadiusMetres, neighbourLookup, SamplesPerMetre);
+            float[] field = TerraceLevelField.BuildSignedDistance(
+                data, threshold, world.terraceCornerRadiusMetres, neighbourLookup, SamplesPerMetre);
             signedDistance[threshold - firstThreshold] = field;
             // Level 0 everywhere means thresholds <= 0 are all inside and thresholds >= 1 all outside.
             if (threshold <= 0 ? AnySampleNegative(field) : AnySampleNonNegative(field))
@@ -58,10 +54,7 @@ public static class TerraceTileMeshBuilder
             }
         }
 
-        if (!UseCaseContourOutline)
-        {
-            NestStackedLevelFieldsWithLedge(signedDistance, firstThreshold);
-        }
+        NestStackedLevelFieldsWithLedge(signedDistance, firstThreshold);
 
         LastBuildOutlineChains = new List<TerraceOutlineChain>();
         LastBuildMultiCrossingSubcells = 0;
@@ -71,7 +64,7 @@ public static class TerraceTileMeshBuilder
         }
 
         TileBuild build = new TileBuild(data, world.terraceLevelHeightMetres, world.hillStepHeightMetres, verticalOffsetMetres, signedDistance, firstThreshold, ramps,
-            world.terraceTopRoundMetres, world.terraceFootRoundMetres, world.terraceUseTileCliffEdges);
+            world.terraceTopRoundMetres, world.terraceFootRoundMetres);
         return build.BuildMesh();
     }
 
@@ -138,7 +131,6 @@ public static class TerraceTileMeshBuilder
         private const float FootLiftMetres = 0.03f;
         private readonly float topRoundMetres;
         private readonly float footRoundMetres;
-        private readonly bool useTileCliffEdges;
         private readonly float levelHeight;
         private readonly float hillStepMetres;
         private readonly bool tileHasStepKinds;
@@ -168,10 +160,8 @@ public static class TerraceTileMeshBuilder
             int firstThreshold,
             IReadOnlyList<TerraceRampFootprint> ramps,
             float topRoundMetres,
-            float footRoundMetres,
-            bool useTileCliffEdges)
+            float footRoundMetres)
         {
-            this.useTileCliffEdges = useTileCliffEdges;
             this.topRoundMetres = Mathf.Max(0f, topRoundMetres);
             this.footRoundMetres = Mathf.Max(0f, footRoundMetres);
             this.firstThreshold = firstThreshold;
@@ -968,7 +958,7 @@ public static class TerraceTileMeshBuilder
                     : bottoms[index];
             }
 
-            EmitCliffStrips(chainPoints, outward, pointArcs, tops, bottoms, footHeights, topRounds, footRounds, batters, pointLowerLevels);
+            EmitCliffStrips(chainPoints, outward, pointArcs, tops, bottoms, footHeights, topRounds, footRounds, batters);
 
             TerraceOutlineChain chain = new TerraceOutlineChain();
             chain.points = points.ToArray();
@@ -984,9 +974,8 @@ public static class TerraceTileMeshBuilder
         // Group 0 = convex top fillet (grass), 1 = steep face (rock), 2 = concave foot fillet (grass).
         private void EmitCliffStrips(
             Vector2[] chainPoints, Vector2[] outward, float[] pointArcs, float[] tops, float[] bottoms,
-            float[] footHeights, float[] topRounds, float[] footRounds, float[] batters, int[] pointLowerLevels)
+            float[] footHeights, float[] topRounds, float[] footRounds, float[] batters)
         {
-            bool bevelGoesToGround = useTileCliffEdges;
             int pointCount = chainPoints.Length;
             int[] groupRowCounts = { FilletSteps + 1, 2, FilletSteps + 1 };
             for (int group = 0; group < 3; group++)
@@ -1050,15 +1039,6 @@ public static class TerraceTileMeshBuilder
                             pointArcs[index],
                             10f + arcMetres - topGrassEndArc,
                             10f + footGrassStartArc - arcMetres);
-                        if (bevelGoesToGround && group != 1)
-                        {
-                            int bevelLevel = group == 0 ? pointLowerLevels[index] + 1 : pointLowerLevels[index];
-                            uv = new Vector4(
-                                (tileWorldCentre.x + tileMetres.x - HalfTile) / TerrainTileData.TileSizeMetres,
-                                (tileWorldCentre.y + tileMetres.y - HalfTile) / TerrainTileData.TileSizeMetres,
-                                bevelLevel,
-                                0f);
-                        }
                         positions.Add(new Vector3(tileMetres.x - HalfTile, height, tileMetres.y - HalfTile));
                         normals.Add(normal.normalized);
                         uvs.Add(uv);
@@ -1076,7 +1056,7 @@ public static class TerraceTileMeshBuilder
                             continue;
                         }
                         EmitProfileQuad(rowVertices[row][index], rowVertices[row][index + 1], rowVertices[row + 1][index + 1], rowVertices[row + 1][index],
-                            bevelGoesToGround && group != 1 ? groundTriangles : wallTriangles);
+                            wallTriangles);
                     }
                 }
             }

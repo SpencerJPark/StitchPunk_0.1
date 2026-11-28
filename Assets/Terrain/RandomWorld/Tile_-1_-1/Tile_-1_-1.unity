@@ -1219,6 +1219,55 @@ MonoBehaviour:
   ruleIndex: 0
   sourceFeatureId: 
   footprintRadiusMetres: 1.75
+--- !u!1 &116316500
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 116316502}
+  - component: {fileID: 116316501}
+  m_Layer: 0
+  m_Name: GeneratedTerraceRamp
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &116316501
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 116316500}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1c3b9e4071277847b038383a612f7ec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.MonoBehaviours::TerraceRamp
+  widthMetres: 8
+  runMetres: 2.8
+  lowerLevel: 0
+  kind: 0
+  risesToTheRight: 0
+--- !u!4 &116316502
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 116316500}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0.26693362, z: 0, w: 0.96371496}
+  m_LocalPosition: {x: -116.77154, y: 4.292431, z: -67.95256}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &117655838
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3309,55 +3358,6 @@ MonoBehaviour:
   ruleIndex: 0
   sourceFeatureId: 
   footprintRadiusMetres: 1.75
---- !u!1 &280412109
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 280412111}
-  - component: {fileID: 280412110}
-  m_Layer: 0
-  m_Name: GeneratedTerraceRamp
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &280412110
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 280412109}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a1c3b9e4071277847b038383a612f7ec, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.MonoBehaviours::TerraceRamp
-  widthMetres: 8
-  runMetres: 2.8
-  lowerLevel: 0
-  kind: 0
-  risesToTheRight: 0
---- !u!4 &280412111
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 280412109}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: -0.26693362, z: 0, w: 0.96371496}
-  m_LocalPosition: {x: -136.31421, y: 3.3371372, z: -107.80965}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &299997554
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -6540,6 +6540,104 @@ MonoBehaviour:
   ruleIndex: 0
   sourceFeatureId: 
   footprintRadiusMetres: 1.75
+--- !u!1 &642583112
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 642583114}
+  - component: {fileID: 642583113}
+  m_Layer: 0
+  m_Name: GeneratedTerraceRamp
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &642583113
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 642583112}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1c3b9e4071277847b038383a612f7ec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.MonoBehaviours::TerraceRamp
+  widthMetres: 8
+  runMetres: 2.8
+  lowerLevel: 0
+  kind: 0
+  risesToTheRight: 0
+--- !u!4 &642583114
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 642583112}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: -0.8701999, z: 0, w: 0.49269882}
+  m_LocalPosition: {x: -137.19035, y: 3.629561, z: -84.31421}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &648110580
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 648110582}
+  - component: {fileID: 648110581}
+  m_Layer: 0
+  m_Name: GeneratedTerraceRamp
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &648110581
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 648110580}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1c3b9e4071277847b038383a612f7ec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.MonoBehaviours::TerraceRamp
+  widthMetres: 8
+  runMetres: 2.8
+  lowerLevel: 0
+  kind: 0
+  risesToTheRight: 0
+--- !u!4 &648110582
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 648110580}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: -0.26693362, z: 0, w: 0.96371496}
+  m_LocalPosition: {x: -136.31421, y: 3.3371372, z: -107.80965}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &659464855
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -8410,6 +8508,55 @@ MonoBehaviour:
   ruleIndex: 0
   sourceFeatureId: 
   footprintRadiusMetres: 1.75
+--- !u!1 &791347183
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 791347185}
+  - component: {fileID: 791347184}
+  m_Layer: 0
+  m_Name: GeneratedTerraceRamp
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &791347184
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 791347183}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1c3b9e4071277847b038383a612f7ec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.MonoBehaviours::TerraceRamp
+  widthMetres: 8
+  runMetres: 2.8
+  lowerLevel: 0
+  kind: 0
+  risesToTheRight: 0
+--- !u!4 &791347185
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 791347183}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -80.5, y: 3.9941611, z: -67.58333}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &793069690
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -11494,55 +11641,6 @@ MonoBehaviour:
   ruleIndex: 0
   sourceFeatureId: 
   footprintRadiusMetres: 1.75
---- !u!1 &1057575177
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1057575179}
-  - component: {fileID: 1057575178}
-  m_Layer: 0
-  m_Name: GeneratedTerraceRamp
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1057575178
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1057575177}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a1c3b9e4071277847b038383a612f7ec, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.MonoBehaviours::TerraceRamp
-  widthMetres: 8
-  runMetres: 2.8
-  lowerLevel: 0
-  kind: 0
-  risesToTheRight: 0
---- !u!4 &1057575179
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1057575177}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: -0.8701999, z: 0, w: 0.49269882}
-  m_LocalPosition: {x: -137.19035, y: 3.629561, z: -84.31421}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1078927337
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -12973,104 +13071,6 @@ MonoBehaviour:
   ruleIndex: 0
   sourceFeatureId: 
   footprintRadiusMetres: 1.75
---- !u!1 &1253576893
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1253576895}
-  - component: {fileID: 1253576894}
-  m_Layer: 0
-  m_Name: GeneratedTerraceRamp
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1253576894
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1253576893}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a1c3b9e4071277847b038383a612f7ec, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.MonoBehaviours::TerraceRamp
-  widthMetres: 8
-  runMetres: 2.8
-  lowerLevel: 0
-  kind: 0
-  risesToTheRight: 0
---- !u!4 &1253576895
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1253576893}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0.26693362, z: 0, w: 0.96371496}
-  m_LocalPosition: {x: -116.77154, y: 4.292431, z: -67.95256}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1294624055
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1294624057}
-  - component: {fileID: 1294624056}
-  m_Layer: 0
-  m_Name: GeneratedTerraceRamp
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1294624056
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1294624055}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a1c3b9e4071277847b038383a612f7ec, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.MonoBehaviours::TerraceRamp
-  widthMetres: 8
-  runMetres: 2.8
-  lowerLevel: 0
-  kind: 0
-  risesToTheRight: 0
---- !u!4 &1294624057
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1294624055}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -80.5, y: 3.9941611, z: -67.58333}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1304479509
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -21021,7 +21021,7 @@ MonoBehaviour:
   cellsPerSide: 100
   layerCount: 1
   coordinate: {x: -1, y: -1}
-  bakedFromTileDataRevision: 52
+  bakedFromTileDataRevision: 58
   bakedFromBlockerHash: 1192945921
 --- !u!64 &1963354864
 MeshCollider:
@@ -23346,7 +23346,7 @@ SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 1963354868}
-  - {fileID: 280412111}
-  - {fileID: 1057575179}
-  - {fileID: 1253576895}
-  - {fileID: 1294624057}
+  - {fileID: 648110582}
+  - {fileID: 642583114}
+  - {fileID: 116316502}
+  - {fileID: 791347185}

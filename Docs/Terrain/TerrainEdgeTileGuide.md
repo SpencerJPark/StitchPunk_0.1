@@ -206,3 +206,46 @@ directly. To reuse it: take its straight edge tile, an outer corner, an inner co
 onto the 5-piece template so each edge crosses at the side midpoints (section 3.1), and draw a diagonal from two
 outer corners. Its look (flat turf, dark flicks hanging outward, no outline on the lower side) is exactly what this
 system is built for.
+
+---
+
+## 11. Cliff ribbons use the straight pieces
+
+Every terrace cliff has two ribbons of ground art: a **lip** along the top edge and a **foot** along the bottom.
+They are drawn from the same edge atlases as the flat ground, so redrawing an atlas changes the cliffs too.
+
+**What a ribbon is.** Each ribbon is 1.55 m wide. The lip starts where the top bevel starts and runs inward over
+the flat top. The foot starts where the foot bevel ends and runs outward over the lower ground. Along the ribbon
+one art cell is 2 m, so every 2 m a new piece is laid down. Across the ribbon, the middle line of your art sits
+0.55 m from the wall.
+
+**Which atlas.** Each point on a ribbon looks at the biome under it and picks one set. Where the biome changes, the
+two sets blend over a single 2 m segment. The ribbon fades out at a ramp mouth and over the last 2 m before it ends.
+
+| Biome under the ribbon | Set used |
+|---|---|
+| Grass | GrassOverDirt |
+| Forest | ForestOverGrass |
+| Stone, Dirt | StoneOverDirt |
+
+**Which piece.** Only the four straight-edge cases are used: 3, 6, 9 and 12. They are rotated to one common
+direction. Each 2 m segment picks one of 2 variants at random (but always the same pick for the same spot), and
+may also flip left to right. That flip is there so the 2 m rhythm of the lobes does not look regular.
+
+**How it is painted.** The channels mean what they mean everywhere else: R is coverage, G is rim light, B is ink.
+Where coverage is above half, the ribbon is cut away and the ground shows through. Everywhere else it draws rock:
+the rim rock colour on the lip, the foot rock colour on the foot.
+
+**What this means for you:**
+
+- Redraw `T_EdgeAtlas_GrassOverDirt`, `T_EdgeAtlas_ForestOverGrass` or `T_EdgeAtlas_StoneOverDirt` (in
+  `Assets/PaintedGround/Textures/EdgeTiles/`) and the cliffs follow. There is no pack step.
+- Only the straight pieces show on cliffs. Their left and right sides must tile with each other, or you will see a
+  seam every 2 m. Corners and the diagonal never appear on a cliff.
+- Only these three sets are used. The old derived Rim and Foot sets were deleted on purpose and are never
+  regenerated.
+- Two variants matter more here than on flat ground, because a cliff is one long straight line and repeats show.
+
+**Preview before opening Unity:**
+`python Tools/terrain_edge_mock/edge_strip_mock.py --out <folder>` draws the straight pieces along a straight and a
+curved ribbon.

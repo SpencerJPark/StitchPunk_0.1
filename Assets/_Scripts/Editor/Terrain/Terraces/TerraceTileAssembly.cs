@@ -206,8 +206,7 @@ public static class TerraceTileAssembly
 
         ApplyWallsChild(tile, tileMesh, wallMaterial, persist);
         List<TerraceOutlineChain> dressingChains = new List<TerraceOutlineChain>();
-        // CE-D2: with tile cliff edges the ground shader draws rim and foot art, so only ramp walls keep the old lip dressing.
-        if (chains != null && (world == null || !world.terraceUseTileCliffEdges))
+        if (chains != null)
             dressingChains.AddRange(chains);
 
         int rampCount = 0;

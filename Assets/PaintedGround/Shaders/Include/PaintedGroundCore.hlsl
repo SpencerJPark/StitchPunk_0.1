@@ -171,19 +171,6 @@ void PaintedTransitionTile_float(Texture2D atlas, SamplerState ss,
                                         layerCol, colIn, inkIn, rimIn, colOut, inkOut, rimOut, discardedCoverage);
 }
 
-// Cliff rim/foot array sample: r coverage, b ink. Case 0 draws nothing, case 15 is solid.
-float3 CliffEdgeTileSample(Texture2DArray cliffArray, SamplerState ss, float slice, float caseIndex,
-                           float2 cellCoordinate, float variantSeed)
-{
-    if (caseIndex < 0.5)
-        return float3(0.0, 0.0, 0.0);
-    if (caseIndex > 14.5)
-        return float3(1.0, 0.0, 0.0);
-    float2 atlasUV; float2 atlasDdx; float2 atlasDdy;
-    PaintedTransitionTileAtlasLookup(caseIndex, cellCoordinate, variantSeed, atlasUV, atlasDdx, atlasDdy);
-    return cliffArray.SampleGrad(ss, float3(atlasUV, slice), atlasDdx, atlasDdy).rgb;
-}
-
 // ---------------------------------------------------------------------------------------------
 // 4. Macro variation, rim and ink, applied once at the end.
 // ---------------------------------------------------------------------------------------------

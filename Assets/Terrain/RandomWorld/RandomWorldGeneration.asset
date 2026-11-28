@@ -119,6 +119,72 @@ MonoBehaviour:
     noiseFrequency: 0.05
     noiseThreshold: 0
     weight: 1
+  plateauStyles:
+  - styleName: LedgeField
+    weight: 1.2
+    grainDegrees: 0
+    grainStretch: 1
+    warpMetres: 24
+    warpFrequencyPerMetre: 0.012
+    macroFrequencyPerMetre: 0.008
+    coveAmount: 0.42
+    wobbleAmount: 0.15
+    bias: -0.05
+    firstLevelThreshold: 0.2
+    secondLevelThreshold: 0.6
+    lowStepShare: 0.6
+  - styleName: Open
+    weight: 1
+    grainDegrees: 0
+    grainStretch: 1
+    warpMetres: 20
+    warpFrequencyPerMetre: 0.012
+    macroFrequencyPerMetre: 0.005
+    coveAmount: 0.25
+    wobbleAmount: 0.15
+    bias: -0.62
+    firstLevelThreshold: 0.3
+    secondLevelThreshold: 0.7
+    lowStepShare: 0.8
+  - styleName: Mesa
+    weight: 1
+    grainDegrees: 0
+    grainStretch: 1
+    warpMetres: 26
+    warpFrequencyPerMetre: 0.012
+    macroFrequencyPerMetre: 0.004
+    coveAmount: 0.4
+    wobbleAmount: 0.18
+    bias: -0.06
+    firstLevelThreshold: 0.15
+    secondLevelThreshold: 0.55
+    lowStepShare: 0.25
+  - styleName: Escarpment
+    weight: 1
+    grainDegrees: 35
+    grainStretch: 4
+    warpMetres: 24
+    warpFrequencyPerMetre: 0.012
+    macroFrequencyPerMetre: 0.006
+    coveAmount: 0.4
+    wobbleAmount: 0.15
+    bias: -0.08
+    firstLevelThreshold: 0.1
+    secondLevelThreshold: 0.6
+    lowStepShare: 0.35
+  - styleName: Stacked
+    weight: 0.8
+    grainDegrees: 0
+    grainStretch: 1
+    warpMetres: 22
+    warpFrequencyPerMetre: 0.012
+    macroFrequencyPerMetre: 0.005
+    coveAmount: 0.36
+    wobbleAmount: 0.15
+    bias: -0.35
+    firstLevelThreshold: 0.05
+    secondLevelThreshold: 0.3
+    lowStepShare: 0.3
   terraceBiomeRules:
   - biome: 1
     enabled: 1

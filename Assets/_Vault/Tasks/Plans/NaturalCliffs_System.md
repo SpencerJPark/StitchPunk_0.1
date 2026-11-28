@@ -1,5 +1,5 @@
 ---
-status: BUILDING 2026-11-28, waves 0-4 done, wave 4b part 1 done (plateau worn gaps live, 0 holes; sunken gaps, AlongCliff, tall ramps still parked); 4b part 2 (tall + AlongCliff) then wave 5 next. S2 Play spike owed to the owner. Resume with `Spencer/NaturalCliffs_Resume_Wave4b.md` and this log. Supersedes TerraceCliffEdges_System.md from wave 4 on.
+status: BUILDING 2026-11-28, waves 0-4b done, wave 5 C1 + C2 + look round 1 done (A4/A5 lip, face and apron fail; sunken gaps, AlongCliff, tall ramps parked). S2 Play spike owed to the owner. Resume with `Spencer/NaturalCliffs_Resume_Wave5.md` and this log. Supersedes TerraceCliffEdges_System.md from wave 4 on.
 parent: Tasks/Plans/Terraces_System.md (levels, walls, ramps), Tasks/Plans/TerrainEdgeTiles_System.md (ground biome edge tiles, unchanged)
 references: Tasks/References/Edges1.png (tall cliff, full profile), Edges2.png (low ledge that fades in and out, left side; short cliff, right), Edges3.png (soft low edge, apron under the lip)
 good earlier capture: Tasks/Captures/Terraces_2026-11-21/r4_06_gameplay_camera.png (rounded freeform outline, striated wall: the starting point)
@@ -480,3 +480,19 @@ Guards measured on a capture by a small script, not by eye:
   item "tall cliffs are rare"; the RandomWorld profile does not serialize `plateauStyles`, so `TerracePlateauStyleDefaults` decides).
   Order for wave 5: raise the tall share -> re-sweep -> re-enable AlongCliff + fix its landing notch -> sunken gap planner (lower end
   on level 0, see part 1).
+- 2026-11-28 Wave 5 part 1. **C1 (NC-D18) done** by four workers in parallel plus orchestrator `git rm`:
+  - `TerraceCaseContour` + its tests, `TerraceCliffEdgeArrayPacker`, `TerraceCliffEdges.asset`;
+  - `BuildSignedDistanceFromCaseContour` (`BuildCornerLevels` kept: `TerrainTileAssets` uses it);
+  - `UseCaseContourOutline` and the bevels-in-ground branch; `terraceUseTileCliffEdges`;
+  - the `TerraceCliffEdge` ground pass and `CliffEdgeTileSample`; the bridge's cliff-edge array + Ready flag;
+  - `export_transition_atlas.py --cliff`; the stale ramp test.
+  Every assembly gated, the shader compiled with 0 errors, fixtures 36 pass / 0 fail / 1 known Inconclusive.
+  Left dead in the python script: `offset_case_piece`, `smoothed_dirt_source`, `check_side_crossings` and the DIRT_*
+  constants (harmless). **C2** guide section 11 "Cliff ribbons use the straight pieces" in `Docs/Terrain/TerrainEdgeTileGuide.md`.
+  **Tall share:** in-memory sweep of the world style's lowStepShare: .85 -> 458 tall plateau cells, .6 -> 1471, .3 -> 2114.
+  Low outline share stays >= .77 (M6 ok). Tall Straight ramps stay 0-1 (tall regions touch tile borders). Set .6 on
+  `RandomWorldGeneration.asset`: the asset never serialized `plateauStyles`, so they lived in memory and a code-default edit did
+  nothing. 3x3 regenerated: holes 0, plan 0. **Look round 1** (`sheet_05_round1.png` vs Edges1):
+  - pass: tall cliffs now on screen, plan shapes freeform and varied (A1, A2, A3 data);
+  - fail A4/A5: the lip is a flat cream stripe, the face is barely darker than a Stone top, and the foot apron is heavy on a 0.7 m ledge.
+  Next: `Spencer/NaturalCliffs_Resume_Wave5.md`. ⏸ posted, continued.
