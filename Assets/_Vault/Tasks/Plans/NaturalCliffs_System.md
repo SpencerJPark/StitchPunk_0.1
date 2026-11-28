@@ -472,3 +472,11 @@ Guards measured on a capture by a small script, not by eye:
   Fixtures (reflection runner, 5 files): 36 pass, 1 Inconclusive (known), 1 fail: the stale
   `TerracedTileEmitsNoWallVertexInsideARampFootprint` (C1). Sheets `sheet_04b_diagnose.png`, `sheet_04b_after_bitfix.png`,
   `sheet_04b_skirts.png`. ⏸ posted, continued.
+- 2026-11-28 Wave 4b part 2 measured, nothing changed. In-memory sweep of `MaxBaseRiseAcrossRampMetres` over the 3x3:
+  1 m -> 0 tall Straight / 18 gaps (7 sunken); 2 m -> 3 / 25 (13); 3 m -> 13 / 13 (1); 5 m -> 19. The 3x3 holds only 458 tall
+  plateau cells (m2). The extra tall ramps a looser limit admits are almost all **sunken slope cuts**: 3 m plus the uphill base
+  rise over a 12 m run breaks the 15-degree caravan grade. So the 1 m rule stays. AlongCliff = 0 at every limit (collection still
+  skipped), and there is no tall plateau on this 3x3 to test it on. **A7 is blocked on data**: tall plateaus must exist first (wave 5
+  item "tall cliffs are rare"; the RandomWorld profile does not serialize `plateauStyles`, so `TerracePlateauStyleDefaults` decides).
+  Order for wave 5: raise the tall share -> re-sweep -> re-enable AlongCliff + fix its landing notch -> sunken gap planner (lower end
+  on level 0, see part 1).
