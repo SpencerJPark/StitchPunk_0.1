@@ -81,6 +81,7 @@ public class TerrainWaterBody : MonoBehaviour
 
     private void OnEnable()
     {
+        TerrainRebakeGate.RememberSerializedState(this);
 #if UNITY_EDITOR
         RememberTransform();
 #endif
@@ -89,7 +90,7 @@ public class TerrainWaterBody : MonoBehaviour
     private void OnValidate()
     {
 #if UNITY_EDITOR
-        if (TerrainRebakeGate.SuppressRebakeEvents)
+        if (!TerrainRebakeGate.ShouldRaiseForValidate(this))
         {
             return;
         }

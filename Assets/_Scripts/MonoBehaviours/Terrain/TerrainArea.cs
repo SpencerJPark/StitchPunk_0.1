@@ -170,6 +170,7 @@ public class TerrainArea : MonoBehaviour
 
     private void OnEnable()
     {
+        TerrainRebakeGate.RememberSerializedState(this);
         Spline.Changed += HandleSplineChanged;
         RememberTransform();
     }
@@ -183,7 +184,7 @@ public class TerrainArea : MonoBehaviour
     {
         AssignFeatureIdIfEmpty();
 #if UNITY_EDITOR
-        if (TerrainRebakeGate.SuppressRebakeEvents)
+        if (!TerrainRebakeGate.ShouldRaiseForValidate(this))
         {
             return;
         }

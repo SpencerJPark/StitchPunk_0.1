@@ -103,6 +103,7 @@ public class TerrainRoad : MonoBehaviour
 
     private void OnEnable()
     {
+        TerrainRebakeGate.RememberSerializedState(this);
         Spline.Changed += HandleSplineChanged;
         RememberTransform();
     }
@@ -115,7 +116,7 @@ public class TerrainRoad : MonoBehaviour
     private void OnValidate()
     {
 #if UNITY_EDITOR
-        if (TerrainRebakeGate.SuppressRebakeEvents)
+        if (!TerrainRebakeGate.ShouldRaiseForValidate(this))
         {
             return;
         }

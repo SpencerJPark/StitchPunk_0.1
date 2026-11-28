@@ -30,6 +30,7 @@ public static class TerrainTerraceBaker
 
     private static void OnTerraceChanged(Vector2Int tileCoordinate)
     {
+        if (TerrainRebakeGate.SecondsSinceLastLoadEvent < 30.0) Debug.Log("[TerrainRebake] startup event: terrace tile " + tileCoordinate);
         pendingTiles.Add(tileCoordinate);
         lastEventTime = EditorApplication.timeSinceStartup;
         if (!updateHooked)
@@ -56,7 +57,44 @@ public static class TerrainTerraceBaker
 
         List<Vector2Int> tilesToRebuild = new List<Vector2Int>(pendingTiles);
         pendingTiles.Clear();
-        RebuildTiles(tilesToRebuild);
+        RebuildTilesWithCancelableProgress(tilesToRebuild);
+    }
+
+    // A tile rebuild can take a minute; without a bar Unity only shows "Waiting for user code".
+    // Cancel leaves the unbuilt tiles pending for the next terrace event or the menu.
+    private static void RebuildTilesWithCancelableProgress(List<Vector2Int> tilesToRebuild)
+    {
+        int tilesBuiltCount = 0;
+        try
+        {
+            for (int tileIndex = 0; tileIndex < tilesToRebuild.Count; tileIndex++)
+            {
+                Vector2Int tileCoordinate = tilesToRebuild[tileIndex];
+                float progressFraction = (float)tileIndex / tilesToRebuild.Count;
+                string progressMessage = "Tile " + tileCoordinate + " (" + (tileIndex + 1) + " of " + tilesToRebuild.Count + ")";
+                if (EditorUtility.DisplayCancelableProgressBar("Rebuilding terraced tiles", progressMessage, progressFraction))
+                {
+                    break;
+                }
+
+                TerrainTile tile = TerrainTileCreator.FindTileAt(tileCoordinate);
+                if (tile != null) TerrainTileBuilder.Rebuild(tile);
+                tilesBuiltCount++;
+            }
+        }
+        finally
+        {
+            EditorUtility.ClearProgressBar();
+            for (int remainingIndex = tilesBuiltCount; remainingIndex < tilesToRebuild.Count; remainingIndex++)
+            {
+                pendingTiles.Add(tilesToRebuild[remainingIndex]);
+            }
+
+            if (tilesBuiltCount < tilesToRebuild.Count)
+            {
+                Debug.Log("[TerrainRebake] terrace rebuild cancelled; " + (tilesToRebuild.Count - tilesBuiltCount) + " tiles stay pending.");
+            }
+        }
     }
 
     [MenuItem("Stitch Punk/Terrain/Terraces/Rebuild All Open Tiles")]

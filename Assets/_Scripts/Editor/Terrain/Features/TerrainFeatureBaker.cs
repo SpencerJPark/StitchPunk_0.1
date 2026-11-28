@@ -34,6 +34,7 @@ public static class TerrainFeatureBaker
 
     private static void OnFeatureChanged(Component feature)
     {
+        if (TerrainRebakeGate.SecondsSinceLastLoadEvent < 30.0) Debug.Log("[TerrainRebake] startup event: feature " + (feature != null ? feature.name : "destroyed"));
         TerrainArea area = feature as TerrainArea;
         TerrainPath path = feature as TerrainPath;
         if (area == null && path == null && !lastBounds.ContainsKey(feature))

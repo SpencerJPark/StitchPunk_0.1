@@ -344,6 +344,7 @@ public sealed class TerrainWaterPanel : TerrainToolPanel
         createdBody.waterLevelMetres = 0f;
         createdBody.profile = FindOrCreateDefaultProfile();
         EditorUtility.SetDirty(createdBody);
+        TerrainWaterEvents.RaiseBody(createdBody);
 
         Undo.RegisterCreatedObjectUndo(bodyObject, "Create Terrain Water Body");
         Selection.activeGameObject = bodyObject;
@@ -358,6 +359,7 @@ public sealed class TerrainWaterPanel : TerrainToolPanel
         TerrainCrossing createdCrossing = crossingObject.AddComponent<TerrainCrossing>();
         createdCrossing.kind = kind;
         EditorUtility.SetDirty(createdCrossing);
+        TerrainWaterEvents.RaiseCrossing(createdCrossing);
 
         Undo.RegisterCreatedObjectUndo(crossingObject, "Create Terrain Crossing");
         Selection.activeGameObject = crossingObject;

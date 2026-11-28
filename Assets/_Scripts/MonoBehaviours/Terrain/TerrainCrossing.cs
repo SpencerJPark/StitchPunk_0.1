@@ -59,13 +59,14 @@ public class TerrainCrossing : MonoBehaviour
 
     private void OnEnable()
     {
+        TerrainRebakeGate.RememberSerializedState(this);
         RememberTransform();
     }
 
     private void OnValidate()
     {
 #if UNITY_EDITOR
-        if (TerrainRebakeGate.SuppressRebakeEvents)
+        if (!TerrainRebakeGate.ShouldRaiseForValidate(this))
         {
             return;
         }

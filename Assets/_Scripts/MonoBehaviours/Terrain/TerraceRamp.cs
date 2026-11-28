@@ -113,13 +113,14 @@ public class TerraceRamp : MonoBehaviour
 
     private void OnEnable()
     {
+        TerrainRebakeGate.RememberSerializedState(this);
         RememberPose();
     }
 
     private void OnValidate()
     {
 #if UNITY_EDITOR
-        if (TerrainRebakeGate.SuppressRebakeEvents)
+        if (!TerrainRebakeGate.ShouldRaiseForValidate(this))
         {
             return;
         }

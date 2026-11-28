@@ -60,6 +60,7 @@ public static class TerrainWaterBaker
 
     private static void RegisterChange(UnityEngine.Object changedObject, Bounds newBounds)
     {
+        if (TerrainRebakeGate.SecondsSinceLastLoadEvent < 30.0) Debug.Log("[TerrainRebake] startup event: water " + (changedObject != null ? changedObject.name : "destroyed"));
         // A destroyed object compares equal to null but is still a usable dictionary key by reference
         Bounds previousBounds;
         if (changedObject != null && lastBounds.TryGetValue(changedObject, out previousBounds))

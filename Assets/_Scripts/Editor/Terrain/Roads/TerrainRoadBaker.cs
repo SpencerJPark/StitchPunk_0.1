@@ -34,6 +34,7 @@ public static class TerrainRoadBaker
 
     private static void OnRoadChanged(TerrainRoad road)
     {
+        if (TerrainRebakeGate.SecondsSinceLastLoadEvent < 30.0) Debug.Log("[TerrainRebake] startup event: road " + (road != null ? road.name : "destroyed"));
         Bounds previousBounds;
         if (lastBounds.TryGetValue(road, out previousBounds))
         {

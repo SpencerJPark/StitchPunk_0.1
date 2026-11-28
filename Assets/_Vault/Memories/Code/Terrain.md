@@ -116,6 +116,12 @@ Replaces the section below from its wave 4 on. The owner rejected the grid-locke
 - Ground shader cliff pass (`TerraceCliffEdge` in PaintedGround.shader) runs only when `_TerraceCliffEdgesReady` = 1 (bridge has the array); it marks its cells `terraceEdgeOwned` so the slope `_CLIFFS` texture stays off the bevels. Debug it by setting the bridge rock colours to pure red/blue in Play mode. Corner-level texture must be R8 (see Gotchas).
 - Offline mock: `edge_tile_mock.py --cliff-edges <dir>`. The foot is sampled at the pixel's own XZ with the complement case, never pushed toward the plateau.
 
+## Startup rebake gate (2026-11-28, spec `Tasks/Verification/TerrainStartupRebake_Fix.md`)
+- Unity calls `OnValidate` on every terrain feature on every load/recompile/scene open with nothing changed. Feature `OnValidate`s must gate on `TerrainRebakeGate.ShouldRaiseForValidate(this)` (hash of `EditorJsonUtility.ToJson`, first sight raises nothing) and call `RememberSerializedState(this)` first thing in `OnEnable`. A plain `SuppressRebakeEvents` check let ~10 min of tile rebuilds + scene saves + nav bakes run after every reload.
+- A creator that sets fields after `AddComponent` gets no bake from `OnValidate`; it must raise or bake explicitly (Water panel body/crossing do; bulk generators bake at the end; ramp/river are caught by their pose `Update` / `Spline.Changed`).
+- Kill switch: `UserSettings/TerrainAutoRebake.off` (menu `Stitch Punk/Terrain/Auto Rebake On Edit`) suppresses every auto rebake; create it from a shell to rescue a hung Editor. Read once per domain reload.
+- `grep "\[TerrainRebake\]" Logs/Editor.log`: any change event within 30 s of a load logs a `startup event` line with its stack, naming the path that fired.
+
 ## Traps
 - Freeform terrace path: each level threshold's field is rounded on its own, so a double step (level 2 beside 0) made the fields cross and `EmitSubcell` marched only the lowest one (floating slab, no wall). `NestStackedLevelFieldsWithLedge` forces a 3 m ledge; `LastBuildMultiCrossingSubcells` must stay 0.
 - After an edit, the first `refresh_unity` can leave the old assembly loaded; probe a value that the edit changes before trusting a revert-check or capture, and refresh again if it is stale.

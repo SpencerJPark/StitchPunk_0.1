@@ -150,6 +150,7 @@ public class TerrainPath : MonoBehaviour
 
     private void OnEnable()
     {
+        TerrainRebakeGate.RememberSerializedState(this);
         Spline.Changed += HandleSplineChanged;
         RememberTransform();
     }
@@ -164,7 +165,7 @@ public class TerrainPath : MonoBehaviour
         AssignFeatureIdIfEmpty();
         SynchroniseSplineClosedFlag();
 #if UNITY_EDITOR
-        if (TerrainRebakeGate.SuppressRebakeEvents)
+        if (!TerrainRebakeGate.ShouldRaiseForValidate(this))
         {
             return;
         }
