@@ -55,6 +55,7 @@ public static class TerracePlateauPlanSheet
         public float axisAlignedOutline;
         public float lowOutline;
         public float longestStraight;
+        public float worstStraightExcessOverTileLimit = float.MinValue;
         public float minCompactness = float.MaxValue;
         public float maxCompactness = float.MinValue;
         public int compactnessCount;
@@ -145,6 +146,10 @@ public static class TerracePlateauPlanSheet
 
                         TerracePlateauTileMetrics metrics = TerracePlateauMetrics.Measure(data, lookup, cornerRadiusMetres, maxLevel);
                         AccumulateMetrics(aggregate, metrics);
+                        // Cliff-line styles (Escarpment) are allowed longer straight stretches.
+                        float straightLimitMetres = styles[styleIndex].grainStretch > 1.5f ? 20f : 14f;
+                        aggregate.worstStraightExcessOverTileLimit = Mathf.Max(aggregate.worstStraightExcessOverTileLimit,
+                            metrics.longestStraightStretchMetres - straightLimitMetres);
                         if (metrics.terracedAreaShare < 0.10f)
                         {
                             sparseTileCount++;
@@ -388,6 +393,7 @@ public static class TerracePlateauPlanSheet
             overall.axisAlignedOutline += roll.axisAlignedOutline;
             overall.lowOutline += roll.lowOutline;
             overall.longestStraight = Mathf.Max(overall.longestStraight, roll.longestStraight);
+            overall.worstStraightExcessOverTileLimit = Mathf.Max(overall.worstStraightExcessOverTileLimit, roll.worstStraightExcessOverTileLimit);
             overall.neckViolationCells += roll.neckViolationCells;
             overall.minCompactness = Mathf.Min(overall.minCompactness, roll.minCompactness);
             overall.maxCompactness = Mathf.Max(overall.maxCompactness, roll.maxCompactness);
@@ -419,7 +425,7 @@ public static class TerracePlateauPlanSheet
         float minCompactness = overall.compactnessCount > 0 ? overall.minCompactness : 0f;
         float maxCompactness = overall.compactnessCount > 0 ? overall.maxCompactness : 0f;
         bool passM1 = m1 < 0.25f;
-        bool passM2 = overall.longestStraight <= 14f;
+        bool passM2 = overall.worstStraightExcessOverTileLimit <= 0f;
         bool passM3 = minCompactness < 0.35f && maxCompactness > 0.6f;
         bool passM4 = overall.neckViolationCells == 0;
         bool passM5 = overall.minTerracedShare >= 0f && overall.maxTerracedShare <= 0.55f && everyRollSparseAndDense;

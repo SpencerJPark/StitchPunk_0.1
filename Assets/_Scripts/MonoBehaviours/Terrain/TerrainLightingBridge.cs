@@ -86,8 +86,8 @@ public class TerrainLightingBridge : MonoBehaviour
 
     [Tooltip("Rim slices (Dirt, Grass, Forest, Stone) then Foot slices; packed by Stitch Punk/Terrain/Edge Tiles/Pack Cliff Edge Sets.")]
     public Texture2DArray terraceCliffEdgeArray;
-    public Color rimRockColour = new Color(0.72f, 0.62f, 0.50f);
-    public Color footRockColour = new Color(0.33f, 0.27f, 0.22f);
+    public Color rimRockColour = new Color(0.46f, 0.39f, 0.31f);
+    public Color footRockColour = new Color(0.17f, 0.14f, 0.11f);
 
     [Min(0.5f)] public float edgeTileCellMetres = 2f;
 

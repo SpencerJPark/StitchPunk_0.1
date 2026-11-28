@@ -7,6 +7,7 @@ public struct TerrainNavCellInput
     public bool deepWater;
     public bool shallowWater;
     public bool crossesTerraceWall;
+    public bool crossesLowLedge;
     public bool onRoad;
     public byte groundCost;
     public byte roadCost;
@@ -42,6 +43,13 @@ public static class TerrainNavCellRules
         if (input.crossesTerraceWall)
         {
             cell.cost = WallCost;
+            cell.surface = TerrainSurface.Normal;
+            return cell;
+        }
+        // NC-D6: a 0.7 m ledge is walkable but heavy; it must not hit the 45-degree slope wall test below.
+        if (input.crossesLowLedge)
+        {
+            cell.cost = Math.Max(input.groundCost, HeavyCost);
             cell.surface = TerrainSurface.Normal;
             return cell;
         }

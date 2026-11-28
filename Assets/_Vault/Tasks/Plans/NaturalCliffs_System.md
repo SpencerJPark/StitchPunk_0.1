@@ -1,5 +1,5 @@
 ---
-status: BUILDING 2026-11-27, waves 0-2 done, wave 3 next (plus N3c, M4 fix). Supersedes TerraceCliffEdges_System.md from wave 4 on (its waves 1-3 are partly undone here, see section 1 and wave 0).
+status: BUILDING 2026-11-28, waves 0-3 done (wave 3 committed with I1/I2 green, G1 0.74); wave 4 next. S2 Play spike owed to the owner. Resume with `Spencer/NaturalCliffs_Resume_Wave3.md` section 3. Supersedes TerraceCliffEdges_System.md from wave 4 on (its waves 1-3 are partly undone here, see section 1 and wave 0).
 parent: Tasks/Plans/Terraces_System.md (levels, walls, ramps), Tasks/Plans/TerrainEdgeTiles_System.md (ground biome edge tiles, unchanged)
 references: Tasks/References/Edges1.png (tall cliff, full profile), Edges2.png (low ledge that fades in and out, left side; short cliff, right), Edges3.png (soft low edge, apron under the lip)
 good earlier capture: Tasks/Captures/Terraces_2026-11-21/r4_06_gameplay_camera.png (rounded freeform outline, striated wall: the starting point)
@@ -400,3 +400,25 @@ Guards measured on a capture by a small script, not by eye:
   rule; left as data. Plan sheet re-measured: M4 = 257 FAIL (roll 2 = 187): channel cuts and the W/R splice run after
   the re-clean, and the 8 m stacked set-back is not re-applied after it -> **N3c** in wave 3 (raster only). M2 15.3 on
   roll 2 against a uniform 14 m limit in code; the per-style 20 m Escarpment limit goes in with N3c. ⏸ posted, continued.
+- 2026-11-28 Wave 3 done. N4/K1/L4/N3c verified in the Editor. **I2 was red**: (a) the slope-cliff pass probed 6 m uphill past the
+  lock band on the rolled height, and (b) `BiomeLayerAt`'s 1 m slope taps leaked the roll in. Orchestrator one-liners: lock-band
+  cells use roll 0 for both. (c) The raster's W pass capped with the rolled biome; worker N4fix: the cap is now
+  `Func<Vector2, bool, int>` (useRolledField), and the W pass passes false. Revert-checked `LockBandIsTheSameForEveryRoll` and
+  `RerollKeepsTheHeightBorderRing`, both red without their fix. Four fixtures: 39 pass, 1 Inconclusive
+  (`EveryRaisedRegionAwayFromTheTileRimHasARampOnItsEdge`, its test tiles have no interior region). Fixtures were run by reflection
+  on a `delayCall` to avoid the Test Runner scene save and nav re-bake. **M4 322 -> 106** via N3d: after kinds are assigned,
+  a full open+close on free cells, where added cells copy the nearest kind. The 106 left are all lock-band level-2 slivers:
+  the W band holds a level the R interior lacks, and the 8 m stacked set-back re-clears anything grown inward.
+  N3e (a W settle loop) and N3f (grow into free cells) measured no gain and were removed. Accepted as residual; wave 5 if it
+  shows. M2 15.3 ok (Escarpment 20 m), M5 5/6 (accepted), M1/M3/M6 ok. 3x3 regenerated: 857 s, 95 s/tile.
+  **I1 in the Editor**: two rerolls of 0_0 changed only Tile_0_0's 5 files; 0_0 is left at roll 2, so seams after a reroll are
+  on screen. Trap: a full 3x3 generate leaves earlier tiles dirty in memory, and saving them took 6 min of nav bakes. U1 must not
+  dirty neighbours. **NC-D17 closed, no top-specific defect**: in Play the keyword, the 3 atlases, `_SPLAT_WORLDTEXTURE`, the SDF
+  splat and `_TerraceCornerOrigin.z` = 2 are all live, and tops draw exactly like level 0. The blocky forest/grass borders are
+  the 2 m edge-tile grid everywhere, which belongs to the EdgeTiles spec (owner), so V1f is dropped. **G1 1.26 -> 0.74 pass**:
+  - L4b worker: the gradient reaches the foot within 4 m, the wall light is clamped at 1 or below, deeper cracks with more ink;
+  - bridge rock rim .46/.39/.31, foot .17/.14/.11 (sRGB; code defaults + RandomWorld/TerrainWorld scenes). The rim alone was
+    brighter than the grass, so no gradient could pass.
+  Data: tall edges are 4 % of 0->1 edge cells and there is still no level 2 (W5). **S2 not run**: it needs units driven in Play,
+  and the MCP websocket dropped again at the end, so it is owed to the owner. Sheets `sheet_03_wave3.png`, `sheet_03_wall.png`
+  (03 before, 03d after). ⏸ posted, continued.

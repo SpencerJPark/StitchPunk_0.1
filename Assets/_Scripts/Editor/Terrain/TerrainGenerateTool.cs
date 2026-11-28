@@ -90,10 +90,9 @@ public static class TerrainGenerateTool
         int maxLevels = worldProfile != null ? worldProfile.maxTerraceLevels : 3;
         byte[] levels = new byte[TerrainTileData.TerraceCellsPerSide * TerrainTileData.TerraceCellsPerSide];
         byte[] stepKinds = new byte[levels.Length];
-        const int rollIndexUntilN4 = 0;
         System.Func<Vector2Int, TerrainTileData> neighbourLookup = (Vector2Int neighbourCoordinate) =>
             AssetDatabase.LoadAssetAtPath<TerrainTileData>(TerrainTileAssets.TileDataPath(neighbourCoordinate));
-        TerrainProceduralGenerator.GenerateTerraceLevels(profile, coordinate, maxLevels, rollIndexUntilN4, neighbourLookup, levels, stepKinds, generatedRamps);
+        TerrainProceduralGenerator.GenerateTerraceLevels(profile, coordinate, maxLevels, tileData.rollIndex, neighbourLookup, levels, stepKinds, generatedRamps);
         tileData.baseTerraceLevels = levels;
         tileData.baseTerraceStepKinds = stepKinds;
     }
@@ -140,13 +139,13 @@ public static class TerrainGenerateTool
         if (tileData.handAuthored && !allowHandAuthored) return false;
 
         tileData.EnsureHeightArrays();
-        TerrainProceduralGenerator.GenerateHeights(region.profile, coordinate, tileData.baseHeights);
+        TerrainProceduralGenerator.GenerateHeights(region.profile, coordinate, tileData.rollIndex, tileData.baseHeights);
         List<TerraceRampPlacement> generatedRamps = new List<TerraceRampPlacement>();
         GenerateBaseTerraceLevels(region.profile, coordinate, tileData, generatedRamps);
 
         int resolution = tileData.maskResolution > 0 ? tileData.maskResolution : TerrainSplatCodec.FallbackMaskResolution;
         Color32[] maskPixels = new Color32[resolution * resolution];
-        TerrainProceduralGenerator.GenerateBaseMask(region.profile, coordinate, resolution, maskPixels);
+        TerrainProceduralGenerator.GenerateBaseMask(region.profile, coordinate, tileData.rollIndex, resolution, maskPixels);
         string maskPath = TerrainTileAssets.MaskPath(coordinate);
         TerrainSplatCodec.WritePng(maskPath, maskPixels, resolution, false);
         Texture2D maskTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(maskPath);
@@ -185,7 +184,7 @@ public static class TerrainGenerateTool
             CopyIfPresent(realData.handHeightDelta, temporaryData.handHeightDelta);
             CopyIfPresent(realData.riverHeightDelta, temporaryData.riverHeightDelta);
             CopyIfPresent(realData.roadHeightDelta, temporaryData.roadHeightDelta);
-            TerrainProceduralGenerator.GenerateHeights(profile, tile.tileCoordinate, temporaryData.baseHeights);
+            TerrainProceduralGenerator.GenerateHeights(profile, tile.tileCoordinate, realData.rollIndex, temporaryData.baseHeights);
 
             MeshFilter meshFilter = tile.GetComponent<MeshFilter>();
             if (meshFilter == null) return false;

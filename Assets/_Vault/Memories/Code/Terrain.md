@@ -104,7 +104,7 @@ tile transitions (grid-snapped marching squares off the same SDF corners). See `
 `Tasks/Plans/TerrainEdgeTiles_System.md` replaces that transition experiment: a 16-case dual-grid tile set on 2 m cells, biome id per
 corner derived by the compositor, per-pair edge sets. Drawing rules + templates: `Docs/Terrain/TerrainEdgeTileGuide.md`.
 
-## Natural Cliffs (spec `Tasks/Plans/NaturalCliffs_System.md`, 2026-11-27, not started)
+## Natural Cliffs (spec `Tasks/Plans/NaturalCliffs_System.md`, 2026-11-27, waves 0-3 built)
 Replaces the section below from its wave 4 on. The owner rejected the grid-locked look and deleted the derived Rim/Foot atlases. The outline goes back to `TerraceLevelField.BuildSignedDistance`; the case contour and the bevels-in-ground path are deleted in that spec's cleanup wave. The capture and debugging notes below still hold.
 
 ## Terrace cliff edges (spec `Tasks/Plans/TerraceCliffEdges_System.md`, wave 1 2026-11-27, SUPERSEDED)
@@ -123,6 +123,10 @@ Replaces the section below from its wave 4 on. The owner rejected the grid-locke
 - `grep "\[TerrainRebake\]" Logs/Editor.log`: any change event within 30 s of a load logs a `startup event` line with its stack, naming the path that fired.
 
 ## Traps
+- Roll lock band: anything evaluated for a lock-band cell (slope-cliff probe, biome slope taps, the raster W-pass biome cap) must use roll 0, or its probe reaches past 6 m onto rolled noise and `LockBandIsTheSameForEveryRoll` (I2) breaks. `TileBlendFactor(point) <= 0` is the test.
+- A full `TerrainGenerateTool.Generate` over the 3x3 leaves already-built tiles dirty in memory (later tiles touch them); the changes reach disk only on the next save, which runs the nav auto-bake per tile (~1 min each). Never call `AssetDatabase.SaveAssets` inside a reroll check, or those leftovers look like an I1 failure.
+- Running terrain EditMode fixtures without the scene save: invoke the `[Test]` methods by reflection inside `EditorApplication.delayCall` (SetUp/TearDown by attribute name) and write results to a file. `execute_code` with `BindingFlags.NonPublic` needs `safety_checks: false`, or it returns success:false with null data and nothing runs.
+- Cliff face brightness is the bridge's `rimRockColour`/`footRockColour` (sRGB, serialized per scene), not a material constant; G1 needs rim luminance below the grass.
 - Freeform terrace path: each level threshold's field is rounded on its own, so a double step (level 2 beside 0) made the fields cross and `EmitSubcell` marched only the lowest one (floating slab, no wall). `NestStackedLevelFieldsWithLedge` forces a 3 m ledge; `LastBuildMultiCrossingSubcells` must stay 0.
 - After an edit, the first `refresh_unity` can leave the old assembly loaded; probe a value that the edit changes before trusting a revert-check or capture, and refresh again if it is stale.
 - Tile subscenes are `AutoLoadScene=false` and draw nothing in the Scene view when closed; `TerrainOpenTilesSessionRestore` (TerrainTilesPanel.cs) reopens every `Tile_*` subscene for ~10 s after a reload, scene open or Play exit. Closing a tile on purpose lasts until the next one of those.

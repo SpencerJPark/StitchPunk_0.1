@@ -47,6 +47,7 @@ public class TerrainTileData : ScriptableObject
     // Step kind bits: bit k-1 = step +k, bit k+2 = step -k (k = 1..3); a set bit means Hill, clear means Cliff.
     public byte[] baseTerraceStepKinds;                     // length 10000, null = all Cliff
     public byte[] handTerraceStepKinds;                     // length 10000, 255 = no override, null = no overrides
+    [Tooltip("NC-D7 per-tile roll; 0 = world field only. Bumped by the reroll tool.")] public int rollIndex;
 
     public Texture2D baseMask;
     [Tooltip("RGBA paint overlay, A = painted.")]

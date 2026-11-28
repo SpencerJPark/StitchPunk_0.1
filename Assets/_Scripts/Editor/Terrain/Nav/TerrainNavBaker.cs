@@ -186,7 +186,7 @@ public static class TerrainNavBaker
             Physics.SyncTransforms();
         }
 
-        bool[] terraceWallCells = BuildTerraceWallCellMask(tile);
+        BuildTerraceWallAndLowLedgeCellMasks(tile, out bool[] terraceWallCells, out bool[] lowLedgeCells);
         TerrainWorldProfile worldProfile = TerrainWorldProfile.FindOrCreateInProject();
         float profileHeight = worldProfile != null ? worldProfile.terraceLevelHeightMetres : 0f;
 
@@ -202,6 +202,7 @@ public static class TerrainNavBaker
                 input.roadCost = TerrainNavCellRules.LeaveGroundCost;
                 input.groundCost = 1;
                 input.crossesTerraceWall = terraceWallCells != null && terraceWallCells[cellZ * CellsPerSide + cellX];
+                input.crossesLowLedge = lowLedgeCells != null && lowLedgeCells[cellZ * CellsPerSide + cellX];
 
                 if (compositeMask != null)
                 {
@@ -252,18 +253,20 @@ public static class TerrainNavBaker
         }
     }
 
-    private static bool[] BuildTerraceWallCellMask(TerrainTile tile)
+    private static void BuildTerraceWallAndLowLedgeCellMasks(TerrainTile tile, out bool[] wallMask, out bool[] lowLedgeMask)
     {
+        wallMask = null;
+        lowLedgeMask = null;
         TerrainWorldProfile profile = TerrainWorldProfile.FindOrCreateInProject();
         if (profile == null)
         {
-            return null;
+            return;
         }
 
         System.Func<Vector2Int, TerrainTileData> neighbourLookup = FindNeighbourTileData;
         if (!TerraceTileAssembly.TileNeedsTerracedPath(tile.tileData, tile.tileCoordinate, neighbourLookup))
         {
-            return null;
+            return;
         }
 
         List<TerraceRampFootprint> ramps = TerraceTileAssembly.CollectRampFootprints(tile.tileData, tile.tileCoordinate, profile);
@@ -271,7 +274,9 @@ public static class TerrainNavBaker
         List<TerraceOutlineChain> chains = new List<TerraceOutlineChain>(TerraceTileMeshBuilder.LastBuildOutlineChains);
         UnityEngine.Object.DestroyImmediate(scratchMesh);
 
-        bool[] mask = new bool[CellsPerSide * CellsPerSide];
+        wallMask = new bool[CellsPerSide * CellsPerSide];
+        bool[] lowOnlyMask = new bool[CellsPerSide * CellsPerSide];
+        float lowLedgeDropLimit = 0.5f * (profile.hillStepHeightMetres + profile.terraceLevelHeightMetres);
         const float StepMetres = 0.25f;
         for (int chainIndex = 0; chainIndex < chains.Count; chainIndex++)
         {
@@ -280,10 +285,19 @@ public static class TerrainNavBaker
             {
                 continue;
             }
+            float[] bottomHeights = chains[chainIndex].bottomHeights;
+            bool hasBottomHeights = bottomHeights != null && bottomHeights.Length >= points.Length;
             for (int pointIndex = 0; pointIndex + 1 < points.Length; pointIndex++)
             {
                 Vector3 segmentStart = points[pointIndex];
                 Vector3 segmentEnd = points[pointIndex + 1];
+                bool isLowLedgeSegment = false;
+                if (hasBottomHeights)
+                {
+                    float segmentDrop = Mathf.Max(segmentStart.y - bottomHeights[pointIndex], segmentEnd.y - bottomHeights[pointIndex + 1]);
+                    isLowLedgeSegment = segmentDrop < lowLedgeDropLimit;
+                }
+                bool[] targetMask = isLowLedgeSegment ? lowOnlyMask : wallMask;
                 float segmentLength = new Vector2(segmentEnd.x - segmentStart.x, segmentEnd.z - segmentStart.z).magnitude;
                 int stepCount = Mathf.Max(1, Mathf.CeilToInt(segmentLength / StepMetres));
                 for (int stepIndex = 0; stepIndex <= stepCount; stepIndex++)
@@ -293,12 +307,18 @@ public static class TerrainNavBaker
                     int cellZ = Mathf.FloorToInt(samplePoint.z + 50f);
                     if (cellX >= 0 && cellX < CellsPerSide && cellZ >= 0 && cellZ < CellsPerSide)
                     {
-                        mask[cellZ * CellsPerSide + cellX] = true;
+                        targetMask[cellZ * CellsPerSide + cellX] = true;
                     }
                 }
             }
         }
-        return mask;
+
+        // A cell touched by both a tall and a low chain stays a wall.
+        for (int cellIndex = 0; cellIndex < lowOnlyMask.Length; cellIndex++)
+        {
+            lowOnlyMask[cellIndex] = lowOnlyMask[cellIndex] && !wallMask[cellIndex];
+        }
+        lowLedgeMask = lowOnlyMask;
     }
 
     private static TerrainTileData FindNeighbourTileData(Vector2Int coordinate)

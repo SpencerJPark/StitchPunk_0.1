@@ -15537,8 +15537,8 @@ MonoBehaviour:
   forestEdgeTileAtlas: {fileID: 2800000, guid: fa40bd1a2da442cf84a5ee4435f4d8ee, type: 3}
   stoneEdgeTileAtlas: {fileID: 2800000, guid: fce7609063134f30ac36d737469cfaeb, type: 3}
   terraceCliffEdgeArray: {fileID: 18700000, guid: 05ff52a42c2ce1b41b61b9b3489de880, type: 2}
-  rimRockColour: {r: 0.72, g: 0.62, b: 0.5, a: 1}
-  footRockColour: {r: 0.33, g: 0.27, b: 0.22, a: 1}
+  rimRockColour: {r: 0.46, g: 0.39, b: 0.31, a: 1}
+  footRockColour: {r: 0.17, g: 0.14, b: 0.11, a: 1}
   edgeTileCellMetres: 2
 --- !u!114 &536606667
 MonoBehaviour:

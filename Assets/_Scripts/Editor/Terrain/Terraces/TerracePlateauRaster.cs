@@ -19,7 +19,7 @@ public static class TerracePlateauRaster
     private const int CoreSide = TerrainTileData.TerraceCellsPerSide;
     private const int WindowSide = CoreSide + 2 * WindowMarginCells;
     private const int ChannelMinimumInsetCells = 8;
-    private const float ChannelHalfWidthMetres = 3f;
+    private const float ChannelHalfWidthMetres = 3.5f;
     private const int MaxChannelCutsPerStep = 16;
 
     // outLevels: 0..maxLevel per 1 m cell, length 10000, index z * 100 + x, cell (x, z) centre at
@@ -28,14 +28,14 @@ public static class TerracePlateauRaster
         int maxLevel, float minPlateauAreaSquareMetres, int[] outLevels, byte[] outStepKinds)
     {
         RasterizeTile(worldSeed, tileCoordinate, rollIndex, styles, maxLevel, minPlateauAreaSquareMetres,
-            (System.Func<Vector2Int, TerrainTileData>)null, (System.Func<Vector2, int>)null, outLevels, outStepKinds);
+            (System.Func<Vector2Int, TerrainTileData>)null, (System.Func<Vector2, bool, int>)null, outLevels, outStepKinds);
     }
 
     // NC-D8 overload for the generator: margin from stored neighbours, lock band from the world field only, kind inheritance.
-    // maxLevelAtWorldPoint caps the level per cell (biome rule); null = maxLevel everywhere.
+    // maxLevelAtWorldPoint(point, useRolledField) caps the level per cell (biome rule); the world pass passes false so the lock band ignores rolls. null = maxLevel everywhere.
     public static void RasterizeTile(int worldSeed, Vector2Int tileCoordinate, int rollIndex, IReadOnlyList<TerracePlateauStyle> styles,
         int maxLevel, float minPlateauAreaSquareMetres, System.Func<Vector2Int, TerrainTileData> neighbourLookup,
-        System.Func<Vector2, int> maxLevelAtWorldPoint, int[] outLevels, byte[] outStepKinds)
+        System.Func<Vector2, bool, int> maxLevelAtWorldPoint, int[] outLevels, byte[] outStepKinds)
     {
         int cellCount = WindowSide * WindowSide;
         int[] storedLevels = new int[cellCount];
@@ -92,6 +92,7 @@ public static class TerracePlateauRaster
             if (level >= 2)
             {
                 AndInPlace(masks[level], masks[level - 1]);
+                ClearBelowStackedSetback(masks, level, isFixedCell);
             }
         }
 
@@ -105,6 +106,12 @@ public static class TerracePlateauRaster
         }
 
         byte[] windowKinds = AssignWindowStepKinds(worldSeed, tileCoordinate, rollIndex, styles, maxLevel, masks, storedLevels, storedKinds, isLockBandCell, worldLevels);
+
+        // Kinds are already assigned, so a full open+close is safe here: cells the close adds copy the nearest kind. AND + set-back can reopen a thin spot, hence two passes.
+        for (int cleanupPass = 0; cleanupPass < FinalCleanupPassCount; cleanupPass++)
+        {
+            ApplyFinalCleanupToFreeCells(masks, windowKinds, isFixedCell, maxLevel);
+        }
 
         for (int coreZ = 0; coreZ < CoreSide; coreZ++)
         {
@@ -123,6 +130,80 @@ public static class TerracePlateauRaster
                 outLevels[coreIndex] = cellLevel;
                 // A channel cut can leave a kind bit on a cell that dropped below that step.
                 outStepKinds[coreIndex] = (byte)(windowKinds[windowIndex] & ((1 << cellLevel) - 1));
+            }
+        }
+    }
+
+    private const int FinalCleanupPassCount = 2;
+
+    private static void ApplyFinalCleanupToFreeCells(bool[][] masks, byte[] windowKinds, bool[] isFixedCell, int maxLevel)
+    {
+        int cellCount = WindowSide * WindowSide;
+        int searchRadiusCells = Mathf.CeilToInt(CleanupRadiusMetres);
+        for (int level = 1; level <= maxLevel; level++)
+        {
+            bool[] maskBeforeCleanup = (bool[])masks[level].Clone();
+            bool[] cleaned = OpenThenClose(maskBeforeCleanup, WindowSide, CleanupRadiusMetres);
+            byte levelKindBit = (byte)(1 << (level - 1));
+            for (int windowIndex = 0; windowIndex < cellCount; windowIndex++)
+            {
+                if (isFixedCell[windowIndex] || cleaned[windowIndex] == maskBeforeCleanup[windowIndex])
+                {
+                    continue;
+                }
+                masks[level][windowIndex] = cleaned[windowIndex];
+                if (cleaned[windowIndex])
+                {
+                    int sourceIndex = FindNearestSetCell(maskBeforeCleanup, windowIndex, searchRadiusCells);
+                    bool sourceIsLow = sourceIndex >= 0 && (windowKinds[sourceIndex] & levelKindBit) != 0;
+                    windowKinds[windowIndex] = (byte)(sourceIsLow ? (windowKinds[windowIndex] | levelKindBit) : (windowKinds[windowIndex] & ~levelKindBit));
+                }
+            }
+            if (level >= 2)
+            {
+                AndInPlace(masks[level], masks[level - 1]);
+                ClearBelowStackedSetback(masks, level, isFixedCell);
+            }
+        }
+    }
+
+    private static int FindNearestSetCell(bool[] mask, int windowIndex, int searchRadiusCells)
+    {
+        int cellX = windowIndex % WindowSide;
+        int cellZ = windowIndex / WindowSide;
+        int nearestIndex = -1;
+        int nearestDistanceSquared = int.MaxValue;
+        for (int offsetZ = -searchRadiusCells; offsetZ <= searchRadiusCells; offsetZ++)
+        {
+            for (int offsetX = -searchRadiusCells; offsetX <= searchRadiusCells; offsetX++)
+            {
+                int neighbourX = cellX + offsetX;
+                int neighbourZ = cellZ + offsetZ;
+                if (neighbourX < 0 || neighbourX >= WindowSide || neighbourZ < 0 || neighbourZ >= WindowSide)
+                {
+                    continue;
+                }
+                int neighbourIndex = neighbourZ * WindowSide + neighbourX;
+                int distanceSquared = offsetX * offsetX + offsetZ * offsetZ;
+                if (mask[neighbourIndex] && distanceSquared < nearestDistanceSquared)
+                {
+                    nearestDistanceSquared = distanceSquared;
+                    nearestIndex = neighbourIndex;
+                }
+            }
+        }
+        return nearestIndex;
+    }
+
+    // Non-fixed cells of a stacked level survive only where the level below is at least StackedSetbackMetres from its own edge.
+    private static void ClearBelowStackedSetback(bool[][] masks, int level, bool[] isFixedCell)
+    {
+        bool[] setbackAllowed = ErodeByDisc(masks[level - 1], WindowSide, StackedSetbackMetres);
+        for (int windowIndex = 0; windowIndex < setbackAllowed.Length; windowIndex++)
+        {
+            if (!isFixedCell[windowIndex] && !setbackAllowed[windowIndex])
+            {
+                masks[level][windowIndex] = false;
             }
         }
     }
@@ -184,7 +265,7 @@ public static class TerracePlateauRaster
 
     // Threshold -> cap -> stored cells pinned -> 8 m set-back -> open+close -> stored cells pinned again. Returns a level per window cell.
     private static int[] BuildCleanedWindowLevels(int worldSeed, Vector2Int tileCoordinate, int rollIndex, IReadOnlyList<TerracePlateauStyle> styles,
-        bool useRolledField, int maxLevel, System.Func<Vector2, int> maxLevelAtWorldPoint, int[] storedLevels)
+        bool useRolledField, int maxLevel, System.Func<Vector2, bool, int> maxLevelAtWorldPoint, int[] storedLevels)
     {
         int cellCount = WindowSide * WindowSide;
         int2 tileCoordinateInt2 = new int2(tileCoordinate.x, tileCoordinate.y);
@@ -221,7 +302,7 @@ public static class TerracePlateauRaster
                 cellLevel = math.min(cellLevel, maxLevel);
                 if (maxLevelAtWorldPoint != null)
                 {
-                    cellLevel = math.min(cellLevel, math.max(0, maxLevelAtWorldPoint(new Vector2(cellCentreWorld.x, cellCentreWorld.y))));
+                    cellLevel = math.min(cellLevel, math.max(0, maxLevelAtWorldPoint(new Vector2(cellCentreWorld.x, cellCentreWorld.y), useRolledField)));
                 }
                 if (storedLevels[windowIndex] >= 0)
                 {

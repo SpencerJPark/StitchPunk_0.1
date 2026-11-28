@@ -329,6 +329,99 @@ namespace StitchPunk.Tests
             return heights;
         }
 
+        private const int RerollRollCount = 5;
+        private const int RerollHeightBorderRingMetres = 6;
+        private const float RerollMaskBorderRingMetres = 4.5f;
+        private static readonly Vector2Int RerollTileCoordinate = new Vector2Int(1, -2);
+
+        private void ConfigureRerollProfile()
+        {
+            profile.heightLayers.Clear();
+            profile.heightLayers.Add(new TerrainHeightLayer { frequencyPerMetre = 0.013f, amplitudeMetres = 8f, octaves = 4, lacunarity = 2f, gain = 0.5f });
+            profile.heightLayers.Add(new TerrainHeightLayer { frequencyPerMetre = 0.071f, amplitudeMetres = 1.5f, octaves = 2, lacunarity = 2.1f, gain = 0.45f });
+        }
+
+        private float[] GenerateRolledTile(int rollIndex)
+        {
+            float[] heights = new float[TerrainTileData.HeightSampleCount];
+            TerrainProceduralGenerator.GenerateHeights(profile, RerollTileCoordinate, rollIndex, heights);
+            return heights;
+        }
+
+        [Test]
+        public void RerollKeepsTheHeightBorderRing()
+        {
+            ConfigureRerollProfile();
+            float[] rollZero = GenerateRolledTile(0);
+            for (int rollIndex = 1; rollIndex < RerollRollCount; rollIndex++)
+            {
+                float[] rolled = GenerateRolledTile(rollIndex);
+                for (int sampleZ = 0; sampleZ < SamplesPerSide; sampleZ++)
+                {
+                    for (int sampleX = 0; sampleX < SamplesPerSide; sampleX++)
+                    {
+                        int distanceToEdge = Mathf.Min(Mathf.Min(sampleX, SamplesPerSide - 1 - sampleX), Mathf.Min(sampleZ, SamplesPerSide - 1 - sampleZ));
+                        if (distanceToEdge > RerollHeightBorderRingMetres) continue;
+                        int sampleIndex = sampleZ * SamplesPerSide + sampleX;
+                        Assert.AreEqual(rollZero[sampleIndex], rolled[sampleIndex],
+                            "roll " + rollIndex + " changed border sample (" + sampleX + "," + sampleZ + ")");
+                    }
+                }
+            }
+        }
+
+        [Test]
+        public void RerollChangesTheTileInterior()
+        {
+            ConfigureRerollProfile();
+            float[] rollZero = GenerateRolledTile(0);
+            float[] rollOne = GenerateRolledTile(1);
+            bool interiorDiffers = false;
+            for (int sampleZ = 0; sampleZ < SamplesPerSide && !interiorDiffers; sampleZ++)
+            {
+                for (int sampleX = 0; sampleX < SamplesPerSide; sampleX++)
+                {
+                    int distanceToEdge = Mathf.Min(Mathf.Min(sampleX, SamplesPerSide - 1 - sampleX), Mathf.Min(sampleZ, SamplesPerSide - 1 - sampleZ));
+                    if (distanceToEdge < 30) continue;
+                    int sampleIndex = sampleZ * SamplesPerSide + sampleX;
+                    if (rollZero[sampleIndex] != rollOne[sampleIndex])
+                    {
+                        interiorDiffers = true;
+                        break;
+                    }
+                }
+            }
+            Assert.IsTrue(interiorDiffers, "roll 1 matched roll 0 everywhere at least 30 m from the border");
+        }
+
+        [Test]
+        public void RerollKeepsTheBiomeMaskBorderRing()
+        {
+            ConfigureRerollProfile();
+            const int resolution = 100;
+            Color32[] rollZero = new Color32[resolution * resolution];
+            TerrainProceduralGenerator.GenerateBaseMask(profile, RerollTileCoordinate, 0, resolution, rollZero);
+            Color32[] rolled = new Color32[resolution * resolution];
+            for (int rollIndex = 1; rollIndex < RerollRollCount; rollIndex++)
+            {
+                TerrainProceduralGenerator.GenerateBaseMask(profile, RerollTileCoordinate, rollIndex, resolution, rolled);
+                for (int texelZ = 0; texelZ < resolution; texelZ++)
+                {
+                    for (int texelX = 0; texelX < resolution; texelX++)
+                    {
+                        float centreX = texelX + 0.5f;
+                        float centreZ = texelZ + 0.5f;
+                        float distanceToEdge = Mathf.Min(Mathf.Min(centreX, resolution - centreX), Mathf.Min(centreZ, resolution - centreZ));
+                        if (distanceToEdge > RerollMaskBorderRingMetres) continue;
+                        Color32 expected = rollZero[texelZ * resolution + texelX];
+                        Color32 actual = rolled[texelZ * resolution + texelX];
+                        bool same = expected.r == actual.r && expected.g == actual.g && expected.b == actual.b && expected.a == actual.a;
+                        Assert.IsTrue(same, "roll " + rollIndex + " changed border texel (" + texelX + "," + texelZ + ")");
+                    }
+                }
+            }
+        }
+
         #region Natural cliffs seam invariants
 
         // Spec asks for 50; drop to 12 if one GenerateTerraceLevels call measures over ~150 ms (not yet measured).

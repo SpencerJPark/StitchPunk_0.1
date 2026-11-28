@@ -19,8 +19,19 @@ public static class TerrainProceduralGenerator
 
     public static float AnalyticHeightAt(TerrainGenerationProfile profile, float worldX, float worldZ)
     {
+        return AnalyticHeightAt(profile, worldX, worldZ, Vector2Int.zero, 0);
+    }
+
+    public static float AnalyticHeightAt(TerrainGenerationProfile profile, float worldX, float worldZ, Vector2Int tileCoordinate, int rollIndex)
+    {
         float2 seedOffset = CreateSeedOffset(profile.seed);
         float2 worldPosition = new float2(worldX, worldZ);
+
+        // Roll 0 skips the blend entirely so a roll-0 regenerate reproduces today's heights bit for bit.
+        bool rolled = rollIndex != 0;
+        int2 tileCoordinateInt = new int2(tileCoordinate.x, tileCoordinate.y);
+        float tileBlend = rolled ? TerracePlateauField.TileBlendFactor(worldPosition, tileCoordinateInt) : 0f;
+        float2 tileSeedOffset = rolled ? seedOffset + TerracePlateauField.TileSeedOffset(profile.seed, tileCoordinateInt, rollIndex) : seedOffset;
 
         float noiseSum = 0f;
         float maxAmplitude = 0f;
@@ -31,7 +42,13 @@ public static class TerrainProceduralGenerator
             float amplitude = layer.amplitudeMetres;
             for (int octave = 0; octave < layer.octaves; octave++)
             {
-                noiseSum += noise.snoise(worldPosition * frequency + seedOffset) * amplitude;
+                float octaveNoise = noise.snoise(worldPosition * frequency + seedOffset);
+                if (rolled && tileBlend > 0f)
+                {
+                    float tileOctaveNoise = noise.snoise(worldPosition * frequency + tileSeedOffset);
+                    octaveNoise = TerracePlateauField.BlendWorldAndTile(octaveNoise, tileOctaveNoise, tileBlend, 0f);
+                }
+                noiseSum += octaveNoise * amplitude;
                 maxAmplitude += Mathf.Abs(amplitude);
                 frequency *= layer.lacunarity;
                 amplitude *= layer.gain;
@@ -112,6 +129,11 @@ public static class TerrainProceduralGenerator
 
     public static void GenerateHeights(TerrainGenerationProfile profile, Vector2Int tileCoordinate, float[] outHeights)
     {
+        GenerateHeights(profile, tileCoordinate, 0, outHeights);
+    }
+
+    public static void GenerateHeights(TerrainGenerationProfile profile, Vector2Int tileCoordinate, int rollIndex, float[] outHeights)
+    {
         float minCornerX = tileCoordinate.x * TileSizeMetres - TileSizeMetres * 0.5f;
         float minCornerZ = tileCoordinate.y * TileSizeMetres - TileSizeMetres * 0.5f;
         for (int sampleZ = 0; sampleZ < SamplesPerSide; sampleZ++)
@@ -119,12 +141,17 @@ public static class TerrainProceduralGenerator
             for (int sampleX = 0; sampleX < SamplesPerSide; sampleX++)
             {
                 outHeights[sampleZ * SamplesPerSide + sampleX] =
-                    AnalyticHeightAt(profile, minCornerX + sampleX, minCornerZ + sampleZ);
+                    AnalyticHeightAt(profile, minCornerX + sampleX, minCornerZ + sampleZ, tileCoordinate, rollIndex);
             }
         }
     }
 
     public static void GenerateBaseMask(TerrainGenerationProfile profile, Vector2Int tileCoordinate, int resolution, Color32[] outMask)
+    {
+        GenerateBaseMask(profile, tileCoordinate, 0, resolution, outMask);
+    }
+
+    public static void GenerateBaseMask(TerrainGenerationProfile profile, Vector2Int tileCoordinate, int rollIndex, int resolution, Color32[] outMask)
     {
         float2 seedOffset = CreateSeedOffset(profile.seed);
         float minCornerX = tileCoordinate.x * TileSizeMetres - TileSizeMetres * 0.5f;
@@ -138,16 +165,22 @@ public static class TerrainProceduralGenerator
                 float worldX = minCornerX + (texelX + 0.5f) * texelSizeMetres;
                 float worldZ = minCornerZ + (texelZ + 0.5f) * texelSizeMetres;
 
-                outMask[texelZ * resolution + texelX] = TerrainSplatCodec.ColourOfLayer(BiomeLayerAt(profile, worldX, worldZ, seedOffset));
+                outMask[texelZ * resolution + texelX] = TerrainSplatCodec.ColourOfLayer(BiomeLayerAt(profile, worldX, worldZ, seedOffset, tileCoordinate, rollIndex));
             }
         }
     }
 
-    private static TerrainSplatLayer BiomeLayerAt(TerrainGenerationProfile profile, float worldX, float worldZ, float2 seedOffset)
+    private static TerrainSplatLayer BiomeLayerAt(TerrainGenerationProfile profile, float worldX, float worldZ, float2 seedOffset, Vector2Int tileCoordinate, int rollIndex)
     {
-        float height = AnalyticHeightAt(profile, worldX, worldZ);
-        float slopeAlongX = (AnalyticHeightAt(profile, worldX + 1f, worldZ) - AnalyticHeightAt(profile, worldX - 1f, worldZ)) * 0.5f;
-        float slopeAlongZ = (AnalyticHeightAt(profile, worldX, worldZ + 1f) - AnalyticHeightAt(profile, worldX, worldZ - 1f)) * 0.5f;
+        // A lock-band point reads the world field for every sample, or its 1 m slope taps leak the roll in from past the band.
+        if (rollIndex != 0 && TerracePlateauField.TileBlendFactor(new float2(worldX, worldZ), new int2(tileCoordinate.x, tileCoordinate.y)) <= 0f) rollIndex = 0;
+        float height = AnalyticHeightAt(profile, worldX, worldZ, tileCoordinate, rollIndex);
+        float slopeAlongX = (AnalyticHeightAt(profile, worldX + 1f, worldZ, tileCoordinate, rollIndex) - AnalyticHeightAt(profile, worldX - 1f, worldZ, tileCoordinate, rollIndex)) * 0.5f;
+        float slopeAlongZ = (AnalyticHeightAt(profile, worldX, worldZ + 1f, tileCoordinate, rollIndex) - AnalyticHeightAt(profile, worldX, worldZ - 1f, tileCoordinate, rollIndex)) * 0.5f;
+        bool rolled = rollIndex != 0;
+        int2 tileCoordinateInt = new int2(tileCoordinate.x, tileCoordinate.y);
+        float tileBlend = rolled ? TerracePlateauField.TileBlendFactor(new float2(worldX, worldZ), tileCoordinateInt) : 0f;
+        float2 tileSeedShift = rolled ? TerracePlateauField.TileSeedOffset(profile.seed, tileCoordinateInt, rollIndex) : float2.zero;
         float slopeDegrees = Mathf.Atan(Mathf.Sqrt(slopeAlongX * slopeAlongX + slopeAlongZ * slopeAlongZ)) * Mathf.Rad2Deg;
 
         // Warp + per-rule rotation affect the rule noise only; height and slope stay at the true position.
@@ -180,7 +213,10 @@ public static class TerrainProceduralGenerator
             }
 
             float2 ruleNoisePosition = ruleSamplePosition * rule.noiseFrequency + seedOffset + new float2(ruleIndex * 17.3f, 0f);
-            float ruleNoise01 = noise.snoise(ruleNoisePosition) * 0.5f + 0.5f;
+            float ruleSnoise = noise.snoise(ruleNoisePosition);
+            if (rolled && tileBlend > 0f)
+                ruleSnoise = TerracePlateauField.BlendWorldAndTile(ruleSnoise, noise.snoise(ruleNoisePosition + tileSeedShift), tileBlend, 0f);
+            float ruleNoise01 = ruleSnoise * 0.5f + 0.5f;
             if (ruleNoise01 * rule.weight >= rule.noiseThreshold)
                 chosenLayer = rule.layer;
         }
@@ -221,9 +257,9 @@ public static class TerrainProceduralGenerator
         }
         if (minPlateauAreaSquareMetres == float.MaxValue) minPlateauAreaSquareMetres = 0f;
 
-        System.Func<Vector2, int> maxLevelAtWorldPoint = (Vector2 worldPoint) =>
+        System.Func<Vector2, bool, int> maxLevelAtWorldPoint = (Vector2 worldPoint, bool useRolledField) =>
         {
-            int ruleIndex = FirstEnabledRuleIndexAt(profile, worldPoint.x, worldPoint.y, biomeSeedOffset);
+            int ruleIndex = FirstEnabledRuleIndexAt(profile, worldPoint.x, worldPoint.y, biomeSeedOffset, tileCoordinate, useRolledField ? rollIndex : 0);
             return ruleIndex < 0 ? 0 : Mathf.Min(profile.terraceBiomeRules[ruleIndex].maxLevel, maxLevels);
         };
 
@@ -245,14 +281,16 @@ public static class TerrainProceduralGenerator
                 {
                     level = plateauLevels[coreZ * TerraceCellsPerSide + coreX];
                     float worldX = minCornerX + cellX + 0.5f;
+                    // Lock-band cells judge the slope cliff on the world field: the uphill probe reaches past the band, and I2 needs the band roll-independent.
+                    int slopeRollIndex = Mathf.Min(Mathf.Min(coreX, coreZ), Mathf.Min(TerraceCellsPerSide - 1 - coreX, TerraceCellsPerSide - 1 - coreZ)) + 0.5f < TerracePlateauField.LockMetres ? 0 : rollIndex;
                     float worldZ = minCornerZ + cellZ + 0.5f;
-                    int slopeRuleIndex = level == 0 ? FirstEnabledRuleIndexAt(profile, worldX, worldZ, biomeSeedOffset) : -1;
+                    int slopeRuleIndex = level == 0 ? FirstEnabledRuleIndexAt(profile, worldX, worldZ, biomeSeedOffset, tileCoordinate, slopeRollIndex) : -1;
                     if (slopeRuleIndex >= 0 && profile.terraceBiomeRules[slopeRuleIndex].cliffOnSlope)
                     {
                         TerraceBiomeRule rule = profile.terraceBiomeRules[slopeRuleIndex];
-                        float height = AnalyticHeightAt(profile, worldX, worldZ);
-                        float slopeAlongX = (AnalyticHeightAt(profile, worldX + 1f, worldZ) - AnalyticHeightAt(profile, worldX - 1f, worldZ)) * 0.5f;
-                        float slopeAlongZ = (AnalyticHeightAt(profile, worldX, worldZ + 1f) - AnalyticHeightAt(profile, worldX, worldZ - 1f)) * 0.5f;
+                        float height = AnalyticHeightAt(profile, worldX, worldZ, tileCoordinate, slopeRollIndex);
+                        float slopeAlongX = (AnalyticHeightAt(profile, worldX + 1f, worldZ, tileCoordinate, slopeRollIndex) - AnalyticHeightAt(profile, worldX - 1f, worldZ, tileCoordinate, slopeRollIndex)) * 0.5f;
+                        float slopeAlongZ = (AnalyticHeightAt(profile, worldX, worldZ + 1f, tileCoordinate, slopeRollIndex) - AnalyticHeightAt(profile, worldX, worldZ - 1f, tileCoordinate, slopeRollIndex)) * 0.5f;
                         float gradientLength = Mathf.Sqrt(slopeAlongX * slopeAlongX + slopeAlongZ * slopeAlongZ);
                         float slopeDegrees = Mathf.Atan(gradientLength) * Mathf.Rad2Deg;
                         float cliffNoise01 = noise.snoise(new float2(worldX, worldZ) * (rule.plateauNoiseFrequencyPerMetre * 2f) + cliffSeedOffset) * 0.5f + 0.5f;
@@ -261,7 +299,7 @@ public static class TerrainProceduralGenerator
                             // Steep candidate sitting well below the ground 6 m uphill is the downhill part of the patch, so it drops a level and the contour becomes a cliff.
                             float uphillX = worldX + slopeAlongX / gradientLength * uphillProbeMetres;
                             float uphillZ = worldZ + slopeAlongZ / gradientLength * uphillProbeMetres;
-                            if (height < AnalyticHeightAt(profile, uphillX, uphillZ) - downhillDropMetres) level = -1;
+                            if (height < AnalyticHeightAt(profile, uphillX, uphillZ, tileCoordinate, slopeRollIndex) - downhillDropMetres) level = -1;
                         }
                     }
                     outLevels[coreZ * TerraceCellsPerSide + coreX] = (byte)(level + TerrainTileData.TerraceLevelBias);
@@ -287,9 +325,9 @@ public static class TerrainProceduralGenerator
         }
     }
 
-    private static int FirstEnabledRuleIndexAt(TerrainGenerationProfile profile, float worldX, float worldZ, float2 biomeSeedOffset)
+    private static int FirstEnabledRuleIndexAt(TerrainGenerationProfile profile, float worldX, float worldZ, float2 biomeSeedOffset, Vector2Int tileCoordinate, int rollIndex)
     {
-        TerrainSplatLayer biome = BiomeLayerAt(profile, worldX, worldZ, biomeSeedOffset);
+        TerrainSplatLayer biome = BiomeLayerAt(profile, worldX, worldZ, biomeSeedOffset, tileCoordinate, rollIndex);
         for (int ruleIndex = 0; ruleIndex < profile.terraceBiomeRules.Count; ruleIndex++)
         {
             if (profile.terraceBiomeRules[ruleIndex].enabled && profile.terraceBiomeRules[ruleIndex].biome == biome)

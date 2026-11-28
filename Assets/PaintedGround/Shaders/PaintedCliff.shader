@@ -31,6 +31,9 @@ Shader "Painted/Cliff"
         _FootShadowMetres ("Foot shadow metres", Float) = 0.5
         _FootShadowStrength ("Foot shadow strength", Range(0, 1)) = 0.45
         _FootGrassStartMetres ("Foot grass start metres", Float) = 0.55
+        _InkColour ("Crack ink colour", Color) = (0.05, 0.05, 0.07, 1)
+        _WallShadeLevel ("Wall shade band brightness", Range(0, 1)) = 0.6
+        _WallRimLineMetres ("Wall top rim line metres", Float) = 0.12
 
         [Header(Lip)]
         _LipColor ("Lip colour", Color) = (0.30, 0.38, 0.22, 1)
@@ -75,6 +78,9 @@ Shader "Painted/Cliff"
             float  _FootShadowMetres;
             half   _FootShadowStrength;
             float  _FootGrassStartMetres;
+            half4  _InkColour;
+            half   _WallShadeLevel;
+            float  _WallRimLineMetres;
             half   _LipAlphaCutoff;
             float  _BladeDensity;
             half   _ShadowStrength;
@@ -89,6 +95,10 @@ Shader "Painted/Cliff"
         UNITY_DOTS_INSTANCING_END(MaterialPropertyMetadata)
         #define _AmbientTint UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float4, _AmbientTint)
         #endif
+
+        // Globals set by the terrain bridge; deliberately outside the CBUFFER (same as PaintedCliffEdgeRibbon).
+        float4 _TerraceRimRock;
+        float4 _TerraceFootRock;
 
         TEXTURE2D(_SurfaceTex);  SAMPLER(sampler_SurfaceTex);
 
@@ -133,6 +143,39 @@ Shader "Painted/Cliff"
             if (_Mode > 0.5)
                 return CliffBladeCoverage(uv);
             return 1;
+        }
+
+        // Wall face height in metres; falls back to 3 m when the foot fillet is not on this vertex.
+        float CliffWallFaceHeight(float4 uv)
+        {
+            float faceHeight = uv.w > 1 ? uv.x + (uv.w - 10) : 3;
+            return clamp(faceHeight, 0.5, 12);
+        }
+
+        // Rim rock at the top to foot rock at the bottom; the old slate gradient if the bridge has not set the globals.
+        float3 CliffWallRockColour(float gradient)
+        {
+            bool bridgeSet = dot(_TerraceRimRock.rgb, float3(1, 1, 1)) > 0.001;
+            float3 slate = lerp(_TopColor.rgb, _BottomColor.rgb, gradient);
+            return bridgeSet ? lerp(_TerraceRimRock.rgb, _TerraceFootRock.rgb, gradient) : slate;
+        }
+
+        // Vertical cracks: spacing varies 0.4-1.6 m with slow noise along the wall; returns (brightness, deepCrack 0..1).
+        float2 CliffWallCracks(float4 uv)
+        {
+            float spacingNoise = CliffValueNoise(float2(uv.y / 6.0, 3.1));
+            float localDensity = _StriationDensity / lerp(1.0, 4.0, spacingNoise);
+            float2 grooveUV = float2(uv.y * localDensity, uv.x * localDensity * _StriationStretch);
+            float groove = lerp(CliffValueNoise(grooveUV), CliffValueNoise(grooveUV * float2(2.7, 1.3) + 17.3), 0.35);
+            float brightness = lerp(1, 0.35 + 0.9 * groove, _StriationStrength);
+            float deepCrack = 1 - smoothstep(0.2, 0.36, groove);
+            return float2(brightness, deepCrack);
+        }
+
+        // Slow value drift every ~8-15 m so a long face is not uniform.
+        float CliffWallLongDrift(float along)
+        {
+            return 1 + 0.35 * (CliffValueNoise(float2(along / 11.0, 9.7)) - 0.5);
         }
         ENDHLSL
 
@@ -199,6 +242,13 @@ Shader "Painted/Cliff"
                 return OUT;
             }
 
+            // Two hard bands (lit / shade) by normal against the sun, not a smooth falloff. Lives here: GetMainLight needs Lighting.hlsl.
+            float CliffWallLightBand(float3 normalWS)
+            {
+                float normalDotSun = dot(normalWS, GetMainLight().direction);
+                return lerp(_WallShadeLevel, 1.0, smoothstep(-0.01, 0.01, normalDotSun - 0.05));
+            }
+
             half4 frag(Varyings IN) : SV_Target
             {
                 UNITY_SETUP_INSTANCE_ID(IN);
@@ -208,16 +258,20 @@ Shader "Painted/Cliff"
                 float4 surface = SAMPLE_TEXTURE2D(_SurfaceTex, sampler_SurfaceTex, CliffSurfaceUV(IN.uv.xy));
                 float3 baseColour;
                 float alpha = 1;
+                float wallRimLineMask = 0;
 
                 if (_Mode < 0.5)
                 {
-                    float gradient = saturate(IN.uv.x / max(_GradientMetres, 0.001));
-                    float3 slate = lerp(_TopColor.rgb, _BottomColor.rgb, gradient);
-                    float2 grooveUV = float2(IN.uv.y * _StriationDensity, IN.uv.x * _StriationDensity * _StriationStretch);
-                    float groove = lerp(CliffValueNoise(grooveUV), CliffValueNoise(grooveUV * float2(2.7, 1.3) + 17.3), 0.35);
-                    float striation = lerp(1, 0.35 + 0.9 * groove, _StriationStrength);
-                    float3 rockColour = slate * lerp(float3(1, 1, 1), surface.rgb, _SurfaceStrength) * striation;
+                    // Gradient reaches foot rock within 4 m of the top however tall the face is (a 12 m clamp left tall faces near the rim colour), and from the foot side when known.
+                    float gradientFromTop = pow(saturate(IN.uv.x / min(CliffWallFaceHeight(IN.uv), 4.0)), 0.6);
+                    float gradientFromFoot = IN.uv.w > 1 ? 1 - saturate((IN.uv.w - 10) / 2.5) : 0;
+                    float gradient = max(gradientFromTop, gradientFromFoot);
+                    float3 slate = CliffWallRockColour(gradient);
+                    float2 cracks = CliffWallCracks(IN.uv);
+                    float3 rockColour = slate * lerp(float3(1, 1, 1), surface.rgb, _SurfaceStrength) * cracks.x * CliffWallLongDrift(IN.uv.y);
+                    rockColour = lerp(rockColour, _InkColour.rgb, cracks.y * 0.9 * saturate(IN.uv.x / 0.3));
                     baseColour = rockColour;
+                    wallRimLineMask = 1 - smoothstep(0.5 * _WallRimLineMetres, _WallRimLineMetres, IN.uv.x);
 
                     if (IN.uv.z > 1)
                     {
@@ -246,9 +300,14 @@ Shader "Painted/Cliff"
 
                 float3 lighting;
                 PaintedLighting_float(IN.positionWS, normalWS, GetNormalizedScreenSpaceUV(IN.positionCS), _AmbientTint.rgb,
-                                      _ShadowStrength, _NdotLInfluence, _PointLightBoost, lighting);
+                                      _ShadowStrength, _Mode < 0.5 ? 0 : _NdotLInfluence, _PointLightBoost, lighting);
+                // Cap at 1: sun plus ambient pushed the wall above its authored rock colour, lifting it past the ground (G1).
+                if (_Mode < 0.5)
+                    lighting = min(lighting, float3(1, 1, 1)) * CliffWallLightBand(normalWS);
 
                 float3 col = _Mode > 1.5 ? baseColour : baseColour * lighting;
+                // Lightest value in the cliff band: a thin light line on the top bevel, unlit.
+                col = lerp(col, saturate(_TerraceRimRock.rgb * 1.8 + 0.08), wallRimLineMask * (_Mode < 0.5 ? 1 : 0));
                 col = MixFog(col, IN.fogFactor);
                 return half4((half3)col, alpha);
             }
