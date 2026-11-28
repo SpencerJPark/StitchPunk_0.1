@@ -28,6 +28,16 @@ public sealed class TerrainGeneratePanel : TerrainToolPanel
     IVisualElementScheduledItem previewDebounce;
     int randomWorldSeed;
     int randomWorldSizeIndex;
+    const string RerollTooltip = "Reroll the hovered tile only. The 6 m ring at a seam comes from the world seed and cannot be rolled. Paint it by hand or change the world seed.";
+    const float TileSizeMetres = TerrainTileData.TileSizeMetres;
+    readonly Button rerollArmButton;
+    readonly Label rerollTileInfoLabel = new Label();
+    readonly Dictionary<Vector2Int, int> lastBuiltRollIndexByTile = new Dictionary<Vector2Int, int>();
+    bool rerollArmed;
+    bool isRebuildingTile;
+    bool hasHoveredTile;
+    Vector2Int hoveredTileCoordinate;
+    float hoveredSurfaceHeight;
     TerrainRegion selectedRegion;
     IVisualElementScheduledItem refreshTimer;
     string regeneratedText = string.Empty;
@@ -84,6 +94,17 @@ public sealed class TerrainGeneratePanel : TerrainToolPanel
         previewButton.AddToClassList("terrain-segment-button");
         detailGroup.Add(previewButton);
 
+        rerollArmButton = TerrainUi.MakeSecondary("Reroll tile", "Refresh", RerollTooltip, ToggleRerollArmed);
+        detailGroup.Add(rerollArmButton);
+
+        VisualElement rerollRow = new VisualElement();
+        rerollRow.AddToClassList("terrain-row");
+        rerollTileInfoLabel.AddToClassList("terrain-panel-hint");
+        rerollRow.Add(rerollTileInfoLabel);
+        rerollRow.Add(TerrainUi.MakeIconSquare("Refresh", RerollTooltip + " Key R; Shift+R steps back.", RerollTileUnderCursorForward));
+        detailGroup.Add(rerollRow);
+        rerollTileInfoLabel.text = "Arm, then hover a tile";
+
         regeneratedLabel.AddToClassList("terrain-panel-hint");
         detailGroup.Add(regeneratedLabel);
         Add(detailGroup);
@@ -93,12 +114,16 @@ public sealed class TerrainGeneratePanel : TerrainToolPanel
     {
         if (refreshTimer == null) refreshTimer = schedule.Execute(RefreshRegionList).Every(1000);
         else refreshTimer.Resume();
+        Undo.undoRedoPerformed -= OnUndoRedoPerformed;
+        Undo.undoRedoPerformed += OnUndoRedoPerformed;
         RefreshRegionList();
         RenderWorldPreviewNow();
     }
 
     public override void OnHidden()
     {
+        Undo.undoRedoPerformed -= OnUndoRedoPerformed;
+        SetRerollArmed(false);
         if (refreshTimer != null) refreshTimer.Pause();
         if (previewDebounce != null) previewDebounce.Pause();
         DestroyWorldPreviewTexture();
@@ -310,6 +335,169 @@ public sealed class TerrainGeneratePanel : TerrainToolPanel
         if (selectedRegion == null || selectedRegion.profile == null) return;
         if (!TerrainTilesPanel.TryGetActiveTile(out activeTile)) return;
         TerrainGenerateTool.PreviewOneTile(activeTile, selectedRegion.profile);
+    }
+
+    void ToggleRerollArmed()
+    {
+        SetRerollArmed(!rerollArmed);
+    }
+
+    void SetRerollArmed(bool armed)
+    {
+        SceneView.duringSceneGui -= OnRerollSceneGui;
+        rerollArmed = armed;
+        if (armed) SceneView.duringSceneGui += OnRerollSceneGui;
+        else
+        {
+            hasHoveredTile = false;
+            rerollTileInfoLabel.text = "Arm, then hover a tile";
+        }
+        rerollArmButton.EnableInClassList("terrain-segment-button--active", armed);
+        SceneView.RepaintAll();
+    }
+
+    void OnRerollSceneGui(SceneView sceneView)
+    {
+        Event currentEvent = Event.current;
+        if (currentEvent.type == EventType.MouseMove || currentEvent.type == EventType.Repaint)
+        {
+            UpdateHoveredTile(currentEvent.mousePosition);
+            if (currentEvent.type == EventType.MouseMove) sceneView.Repaint();
+        }
+
+        if (hasHoveredTile && currentEvent.type == EventType.Repaint) DrawHoveredTileOutline();
+
+        bool isPlainKeyPress = currentEvent.type == EventType.KeyDown && !currentEvent.control && !currentEvent.alt && !currentEvent.command;
+        if (isPlainKeyPress && currentEvent.keyCode == KeyCode.R && hasHoveredTile)
+        {
+            Vector2Int coordinate = hoveredTileCoordinate;
+            int rollDelta = currentEvent.shift ? -1 : 1;
+            currentEvent.Use();
+            EditorApplication.delayCall += () => RerollTile(coordinate, rollDelta);
+        }
+    }
+
+    void UpdateHoveredTile(Vector2 mousePosition)
+    {
+        Ray mouseRay = HandleUtility.GUIPointToWorldRay(mousePosition);
+        Vector3 hitPoint;
+        RaycastHit raycastHit;
+        if (Physics.Raycast(mouseRay, out raycastHit, 20000f)) hitPoint = raycastHit.point;
+        else
+        {
+            float planeDistance;
+            if (!new Plane(Vector3.up, Vector3.zero).Raycast(mouseRay, out planeDistance))
+            {
+                hasHoveredTile = false;
+                return;
+            }
+            hitPoint = mouseRay.GetPoint(planeDistance);
+        }
+
+        Vector2Int coordinate = new Vector2Int(Mathf.RoundToInt(hitPoint.x / TileSizeMetres), Mathf.RoundToInt(hitPoint.z / TileSizeMetres));
+        if (!hasHoveredTile || coordinate != hoveredTileCoordinate) UpdateRerollInfoLabel(coordinate);
+        hasHoveredTile = true;
+        hoveredTileCoordinate = coordinate;
+        hoveredSurfaceHeight = hitPoint.y;
+    }
+
+    void DrawHoveredTileOutline()
+    {
+        Vector2 centre = TerrainTile.CenterOfTile(hoveredTileCoordinate);
+        float half = TileSizeMetres * 0.5f;
+        Vector3[] corners = new Vector3[]
+        {
+            new Vector3(centre.x - half, hoveredSurfaceHeight, centre.y - half),
+            new Vector3(centre.x + half, hoveredSurfaceHeight, centre.y - half),
+            new Vector3(centre.x + half, hoveredSurfaceHeight, centre.y + half),
+            new Vector3(centre.x - half, hoveredSurfaceHeight, centre.y + half),
+        };
+        Handles.DrawSolidRectangleWithOutline(corners, new Color(1f, 1f, 1f, 0.06f), Color.white);
+    }
+
+    void UpdateRerollInfoLabel(Vector2Int coordinate)
+    {
+        TerrainTileData tileData = LoadTileData(coordinate);
+        if (tileData == null || selectedRegion == null || selectedRegion.profile == null)
+        {
+            rerollTileInfoLabel.text = "(" + coordinate.x + ", " + coordinate.y + ") no tile";
+            return;
+        }
+
+        List<TerracePlateauStyle> styles = selectedRegion.profile.plateauStyles;
+        string styleName = "?";
+        if (styles != null && styles.Count > 0)
+        {
+            int styleIndex = TerracePlateauField.StyleIndexFor(selectedRegion.profile.seed, new Unity.Mathematics.int2(coordinate.x, coordinate.y), tileData.rollIndex, styles);
+            styleName = styles[styleIndex].styleName;
+        }
+        rerollTileInfoLabel.text = "(" + coordinate.x + ", " + coordinate.y + ") " + styleName + " #" + tileData.rollIndex;
+    }
+
+    static TerrainTileData LoadTileData(Vector2Int coordinate)
+    {
+        TerrainTile tile = TerrainTileCreator.FindTileAt(coordinate);
+        if (tile != null && tile.tileData != null) return tile.tileData;
+        return AssetDatabase.LoadAssetAtPath<TerrainTileData>(TerrainTileAssets.TileDataPath(coordinate));
+    }
+
+    void RerollTileUnderCursorForward()
+    {
+        TerrainTile activeTile;
+        if (hasHoveredTile) RerollTile(hoveredTileCoordinate, 1);
+        else if (TerrainTilesPanel.TryGetActiveTile(out activeTile)) RerollTile(activeTile.tileCoordinate, 1);
+    }
+
+    void RerollTile(Vector2Int coordinate, int rollDelta)
+    {
+        if (isRebuildingTile || selectedRegion == null || selectedRegion.profile == null) return;
+        TerrainTileData tileData = LoadTileData(coordinate);
+        if (tileData == null) return;
+        int newRollIndex = Mathf.Max(0, tileData.rollIndex + rollDelta);
+        if (newRollIndex == tileData.rollIndex) return;
+
+        bool allowHandAuthored = false;
+        if (tileData.handAuthored)
+        {
+            if (!EditorUtility.DisplayDialog("Hand-authored tile", "This tile is hand authored. Rerolling replaces its generated layers; hand layers are kept. Reroll anyway?", "Reroll", "Cancel"))
+                return;
+            allowHandAuthored = true;
+        }
+
+        Undo.RecordObject(tileData, "Reroll Tile");
+        tileData.rollIndex = newRollIndex;
+        EditorUtility.SetDirty(tileData);
+        RebuildTileFromRollIndex(coordinate, allowHandAuthored);
+    }
+
+    void RebuildTileFromRollIndex(Vector2Int coordinate, bool allowHandAuthored)
+    {
+        isRebuildingTile = true;
+        try
+        {
+            EditorUtility.DisplayProgressBar("Rerolling tile", "(" + coordinate.x + ", " + coordinate.y + ")", 0.5f);
+            TerrainGenerateTool.GenerateOneTile(selectedRegion, coordinate, allowHandAuthored);
+            TerrainTileData tileData = LoadTileData(coordinate);
+            if (tileData != null) lastBuiltRollIndexByTile[coordinate] = tileData.rollIndex;
+        }
+        finally
+        {
+            EditorUtility.ClearProgressBar();
+            isRebuildingTile = false;
+        }
+        UpdateRerollInfoLabel(coordinate);
+    }
+
+    void OnUndoRedoPerformed()
+    {
+        if (isRebuildingTile || selectedRegion == null || selectedRegion.profile == null) return;
+        foreach (KeyValuePair<Vector2Int, int> lastBuilt in new List<KeyValuePair<Vector2Int, int>>(lastBuiltRollIndexByTile))
+        {
+            TerrainTileData tileData = LoadTileData(lastBuilt.Key);
+            if (tileData == null || tileData.rollIndex == lastBuilt.Value) continue;
+            Vector2Int coordinate = lastBuilt.Key;
+            EditorApplication.delayCall += () => RebuildTileFromRollIndex(coordinate, true);
+        }
     }
 }
 #endif

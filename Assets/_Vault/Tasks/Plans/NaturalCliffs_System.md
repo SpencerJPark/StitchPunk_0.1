@@ -1,5 +1,5 @@
 ---
-status: BUILDING 2026-11-28, waves 0-3 done (wave 3 committed with I1/I2 green, G1 0.74); wave 4 next. S2 Play spike owed to the owner. Resume with `Spencer/NaturalCliffs_Resume_Wave3.md` section 3. Supersedes TerraceCliffEdges_System.md from wave 4 on (its waves 1-3 are partly undone here, see section 1 and wave 0).
+status: BUILDING 2026-11-28, waves 0-4 done (wave 4 partial: worn gaps parked, tall ramps 0); wave 4b ramp notches + wave 5 next. S2 Play spike owed to the owner. Resume with `Spencer/NaturalCliffs_Resume_Wave3.md` section 3 and this log. Supersedes TerraceCliffEdges_System.md from wave 4 on.
 parent: Tasks/Plans/Terraces_System.md (levels, walls, ramps), Tasks/Plans/TerrainEdgeTiles_System.md (ground biome edge tiles, unchanged)
 references: Tasks/References/Edges1.png (tall cliff, full profile), Edges2.png (low ledge that fades in and out, left side; short cliff, right), Edges3.png (soft low edge, apron under the lip)
 good earlier capture: Tasks/Captures/Terraces_2026-11-21/r4_06_gameplay_camera.png (rounded freeform outline, striated wall: the starting point)
@@ -422,3 +422,32 @@ Guards measured on a capture by a small script, not by eye:
   Data: tall edges are 4 % of 0->1 edge cells and there is still no level 2 (W5). **S2 not run**: it needs units driven in Play,
   and the MCP websocket dropped again at the end, so it is owed to the owner. Sheets `sheet_03_wave3.png`, `sheet_03_wall.png`
   (03 before, 03d after). ⏸ posted, continued.
+- 2026-11-28 Wave 4 done, partly. **G2 speed: 95 s -> 6.5 s per tile** (G2a + G2b). Measured first:
+  - the 11 s was `BuildMeshInMemory`;
+  - inside it, `TerraceLevelField.BuildPaddedLevels` called `FindTileAt` 9,600 times per threshold, 6 thresholds;
+  - G2b memoises the lookup per call, G2a returns the exact constant field for a threshold no cell crosses;
+  - rebuild is now 0.8 s, save + nav 0.8 s.
+  Left: biome mask 3.9 s and terraces 3.2 s. G2c made them `Parallel.For`: masks raced, 14-31 texels different run to run
+  (AnimationCurve.Evaluate off the main thread), so it is serial again via `ForEachRowInOrder` (0 diffs vs before). G2 (2 s) is NOT met.
+  **M1: Low steps were never 0.7 m in the mesh.** `TileBuild` used `level * terraceLevelHeightMetres` everywhere, true since the
+  freeform path returned in wave 0, so every ledge was a 3 m cliff. It now goes through `LevelOffsetMetresAt` -> `TerraceLevelOffsetMetres`.
+  Measured: a Low plateau step on 0_0 is 0.70 m; all-Tall output identical (`SunkenHalfOnSloped...ThreeMetreDrop` passes).
+  **Ramp planner** (R1a/R1d/R1g/R1h/R1f):
+  - tolerant chord test (max - min distance to outline over the width <= 1 m), open lower ground, farthest-point spread,
+    NC-D13 count, worn gaps per 40 m;
+  - rejects candidates whose base terrain rises > 1 m end to end (a 12 m ramp on a hillside climbed 13 m and holed the ground);
+  - 2 m junction clearance; R1b/R1c place ramp y and rise by step kind.
+  **Not shippable yet:** a magenta-clear render check (all angles, per ramp) found holes at 14 of 18 worn gaps where the 2.8 m notch
+  meets a freeform wall; snapping yaw to 90 degrees made it worse (reverted). Spawning is parked by
+  `TerrainGenerateTool.SpawnGeneratedWornGapRamps = false`. After the 1 m rule no tall Straight ramp fits these tiles, so 0 ramps
+  are placed (A7 fails). AlongCliff is parked in the planner: its landing notch also holes.
+  Committed tiles: 0 hole pixels inside the 3x3 plan render. **U1 reroll tool**:
+  - a Reroll tile toggle, a hover outline, R / Shift+R, Undo regenerates, hand-tile ask, style name + roll shown;
+  - 177 pt capture `sheet_U1_generate_tab.png` reads fine;
+  - the Scene-view outline is not capturable from a background session (owner checkpoint).
+  Fixtures: generator I1/I2/I3/D1 + border rings pass; mesh 7/7; level field pass.
+  `TerraceRampMeshBuilderTests.TerracedTileEmitsNoWallVertexInsideARampFootprint` fails at HEAD too. It is stale: walls left
+  submesh 1 for the `TerraceWalls` child in wave 0, so it goes to C1.
+  **Next (wave 4b):** ramp notch vs freeform wall in `TerraceRampMeshBuilder` / the wall clip. Use the per-ramp magenta check
+  (sheet_04_gap_holes.png) as the gate; then re-enable gaps, AlongCliff, and tall ramps (re-check the 1 m rule).
+  Sheets `sheet_04_wave4.png`, `sheet_04_gap_holes.png`, `sheet_U1_generate_tab.png`. ⏸ posted, continued.

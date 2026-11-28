@@ -96,13 +96,26 @@ public static class TerraceTileAssembly
             Vector2 forward = new Vector2(Mathf.Sin(yawRadians), Mathf.Cos(yawRadians));
             Vector2 lowerEndCentre = ramp.CentreXZ - forward * (ramp.runMetres * 0.5f);
             Vector2 upperEndCentre = ramp.CentreXZ + forward * (ramp.runMetres * 0.5f);
+            // The step kind belongs to the region the ramp climbs onto, so both ends read the upper end's cell.
+            byte stepKindsOfClimbedRegion = StepKindsOfCellUnder(data, upperEndCentre);
             float lowerHeight = data.SampleBilinear(lowerEndCentre.x, lowerEndCentre.y)
-                + TerrainTileData.GroundTopHeightMetres + ramp.lowerLevel * world.terraceLevelHeightMetres;
+                + TerrainTileData.GroundTopHeightMetres
+                + TerrainTileData.TerraceLevelOffsetMetres(stepKindsOfClimbedRegion, ramp.lowerLevel, world.terraceLevelHeightMetres, world.hillStepHeightMetres);
             float upperHeight = data.SampleBilinear(upperEndCentre.x, upperEndCentre.y)
-                + TerrainTileData.GroundTopHeightMetres + (ramp.lowerLevel + 1) * world.terraceLevelHeightMetres;
+                + TerrainTileData.GroundTopHeightMetres
+                + TerrainTileData.TerraceLevelOffsetMetres(stepKindsOfClimbedRegion, ramp.lowerLevel + 1, world.terraceLevelHeightMetres, world.hillStepHeightMetres);
             footprints.Add(new TerraceRampFootprint(ramp.CentreXZ, ramp.YawDegrees, ramp.widthMetres, ramp.runMetres, lowerHeight, upperHeight, ramp.kind, ramp.risesToTheRight));
         }
         return footprints;
+    }
+
+    private static byte StepKindsOfCellUnder(TerrainTileData data, Vector2 worldPositionXZ)
+    {
+        Vector2 tileMin = data.WorldMinCorner();
+        float cellSizeMetres = TerrainTileData.TileSizeMetres / TerrainTileData.TerraceCellsPerSide;
+        int cellX = Mathf.Clamp(Mathf.FloorToInt((worldPositionXZ.x - tileMin.x) / cellSizeMetres), 0, TerrainTileData.TerraceCellsPerSide - 1);
+        int cellZ = Mathf.Clamp(Mathf.FloorToInt((worldPositionXZ.y - tileMin.y) / cellSizeMetres), 0, TerrainTileData.TerraceCellsPerSide - 1);
+        return data.EffectiveTerraceStepKinds(cellZ * TerrainTileData.TerraceCellsPerSide + cellX);
     }
 
     public static Material GetOrCreateWallMaterial()

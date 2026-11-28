@@ -98,6 +98,9 @@ public static class TerrainGenerateTool
     }
 
     // Only objects named GeneratedTerraceRamp are replaced; hand-placed ramps keep their own names.
+    // Parked: a 2.8 m worn-gap notch leaves holes where it meets a freeform wall (Natural Cliffs wave 4 hole check). Planner still plans them.
+    const bool SpawnGeneratedWornGapRamps = false;
+
     static void ReplaceGeneratedRamps(TerrainTile tile, TerrainTileData tileData, List<TerraceRampPlacement> placements)
     {
         UnityEngine.SceneManagement.Scene tileScene = tile.gameObject.scene;
@@ -107,24 +110,35 @@ public static class TerrainGenerateTool
 
         TerrainWorldProfile worldProfile = TerrainWorldProfile.FindOrCreateInProject();
         float levelHeightMetres = worldProfile != null ? worldProfile.terraceLevelHeightMetres : 3f;
+        float hillStepHeightMetres = worldProfile != null ? worldProfile.hillStepHeightMetres : 0.7f;
+        Vector2 tileMinCorner = tileData.WorldMinCorner();
         foreach (TerraceRampPlacement placement in placements)
         {
+            if (placement.isLowStepWornGap && !SpawnGeneratedWornGapRamps) continue;
             GameObject rampObject = new GameObject(GeneratedRampName);
             TerraceRamp ramp = rampObject.AddComponent<TerraceRamp>();
-            ramp.widthMetres = 6f;
-            ramp.runMetres = 9f;
+            ramp.kind = placement.kind;
+            ramp.widthMetres = placement.widthMetres > 0f ? placement.widthMetres : 6f;
+            ramp.runMetres = placement.runMetres > 0f ? placement.runMetres : 9f;
+            ramp.risesToTheRight = placement.risesToTheRight;
             ramp.lowerLevel = placement.lowerLevel;
+            int centreCellX = Mathf.Clamp(Mathf.FloorToInt(placement.centreWorld.x - tileMinCorner.x), 0, TerrainTileData.TerraceCellsPerSide - 1);
+            int centreCellZ = Mathf.Clamp(Mathf.FloorToInt(placement.centreWorld.y - tileMinCorner.y), 0, TerrainTileData.TerraceCellsPerSide - 1);
+            int centreCellIndex = centreCellZ * TerrainTileData.TerraceCellsPerSide + centreCellX;
+            byte stepKindsAtCentre = tileData.baseTerraceStepKinds != null && centreCellIndex < tileData.baseTerraceStepKinds.Length
+                ? tileData.baseTerraceStepKinds[centreCellIndex]
+                : (byte)0;
             float baseHeight = tileData.SampleBilinear(placement.centreWorld.x, placement.centreWorld.y);
             rampObject.transform.position = new Vector3(
                 placement.centreWorld.x,
-                baseHeight + placement.lowerLevel * levelHeightMetres,
+                baseHeight + TerrainTileData.TerraceLevelOffsetMetres(stepKindsAtCentre, placement.lowerLevel, levelHeightMetres, hillStepHeightMetres),
                 placement.centreWorld.y);
             rampObject.transform.rotation = Quaternion.Euler(0f, placement.yawDegrees, 0f);
             UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(rampObject, tileScene);
         }
     }
 
-    static bool GenerateOneTile(TerrainRegion region, Vector2Int coordinate, bool allowHandAuthored)
+    internal static bool GenerateOneTile(TerrainRegion region, Vector2Int coordinate, bool allowHandAuthored)
     {
         TerrainTile tile = TerrainTileCreator.FindTileAt(coordinate);
         if (tile == null)

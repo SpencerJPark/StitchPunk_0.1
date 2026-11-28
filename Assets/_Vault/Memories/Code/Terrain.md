@@ -104,7 +104,7 @@ tile transitions (grid-snapped marching squares off the same SDF corners). See `
 `Tasks/Plans/TerrainEdgeTiles_System.md` replaces that transition experiment: a 16-case dual-grid tile set on 2 m cells, biome id per
 corner derived by the compositor, per-pair edge sets. Drawing rules + templates: `Docs/Terrain/TerrainEdgeTileGuide.md`.
 
-## Natural Cliffs (spec `Tasks/Plans/NaturalCliffs_System.md`, 2026-11-27, waves 0-3 built)
+## Natural Cliffs (spec `Tasks/Plans/NaturalCliffs_System.md`, 2026-11-27, waves 0-4 built; Low steps are 0.7 m in the mesh since M1)
 Replaces the section below from its wave 4 on. The owner rejected the grid-locked look and deleted the derived Rim/Foot atlases. The outline goes back to `TerraceLevelField.BuildSignedDistance`; the case contour and the bevels-in-ground path are deleted in that spec's cleanup wave. The capture and debugging notes below still hold.
 
 ## Terrace cliff edges (spec `Tasks/Plans/TerraceCliffEdges_System.md`, wave 1 2026-11-27, SUPERSEDED)
@@ -123,6 +123,8 @@ Replaces the section below from its wave 4 on. The owner rejected the grid-locke
 - `grep "\[TerrainRebake\]" Logs/Editor.log`: any change event within 30 s of a load logs a `startup event` line with its stack, naming the path that fired.
 
 ## Traps
+- Hole check for anything that notches the ground (ramps): render with `clearFlags = SolidColor`, magenta background, from top and 40 degrees at four yaws, and count magenta pixels per feature; run it in a separate call after a regenerate (deferred rebuilds make a same-call check report false holes).
+- Generator perf: never call a neighbour lookup (`FindTileAt`, ~0.26 ms) per cell; memoise per call. Do not `Parallel.For` the height or biome math: `AnimationCurve.Evaluate` races off the main thread and the mask changes run to run.
 - Roll lock band: anything evaluated for a lock-band cell (slope-cliff probe, biome slope taps, the raster W-pass biome cap) must use roll 0, or its probe reaches past 6 m onto rolled noise and `LockBandIsTheSameForEveryRoll` (I2) breaks. `TileBlendFactor(point) <= 0` is the test.
 - A full `TerrainGenerateTool.Generate` over the 3x3 leaves already-built tiles dirty in memory (later tiles touch them); the changes reach disk only on the next save, which runs the nav auto-bake per tile (~1 min each). Never call `AssetDatabase.SaveAssets` inside a reroll check, or those leftovers look like an I1 failure.
 - Running terrain EditMode fixtures without the scene save: invoke the `[Test]` methods by reflection inside `EditorApplication.delayCall` (SetUp/TearDown by attribute name) and write results to a file. `execute_code` with `BindingFlags.NonPublic` needs `safety_checks: false`, or it returns success:false with null data and nothing runs.

@@ -1,5 +1,6 @@
 #if UNITY_EDITOR
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 // Pure terrace outline maths for one tile; no scene or AssetDatabase access.
@@ -53,6 +54,14 @@ public static class TerraceLevelField
         int paddedSide = side + 2 * marginSamples;
 
         int[] paddedLevels = BuildPaddedLevels(data, marginCells, neighbourLookup);
+        // A threshold no cell crosses yields the constant clamped field the full path would compute, so skip the distance transforms.
+        if (ThresholdIsUniformAcrossPaddedCells(paddedLevels, threshold, out bool everyCellInside))
+        {
+            float[] uniformSignedDistance = new float[side * side];
+            Array.Fill(uniformSignedDistance, everyCellInside ? SignedDistanceClampMetres : -SignedDistanceClampMetres);
+            return uniformSignedDistance;
+        }
+
         bool[] inside = new bool[paddedSide * paddedSide];
         for (int sampleZ = 0; sampleZ < paddedSide; sampleZ++)
         {
@@ -96,6 +105,32 @@ public static class TerraceLevelField
         }
 
         return signedDistance;
+    }
+
+    private static bool ThresholdIsUniformAcrossPaddedCells(int[] paddedLevels, int threshold, out bool everyCellInside)
+    {
+        bool anyCellInside = false;
+        bool anyCellOutside = false;
+        for (int cellIndex = 0; cellIndex < paddedLevels.Length; cellIndex++)
+        {
+            if (paddedLevels[cellIndex] >= threshold)
+            {
+                anyCellInside = true;
+            }
+            else
+            {
+                anyCellOutside = true;
+            }
+
+            if (anyCellInside && anyCellOutside)
+            {
+                everyCellInside = false;
+                return false;
+            }
+        }
+
+        everyCellInside = anyCellInside;
+        return true;
     }
 
     // Symmetric normalised kernel with clamped indices: linear fields (straight edges) are unchanged; blurs in place.
@@ -153,6 +188,23 @@ public static class TerraceLevelField
         int marginCells,
         Func<Vector2Int, TerrainTileData> neighbourLookup)
     {
+        // The editor lookup is a scene search; the margin visits the same 8 neighbours thousands of times.
+        Dictionary<Vector2Int, TerrainTileData> memoisedNeighbours = new Dictionary<Vector2Int, TerrainTileData>();
+        Func<Vector2Int, TerrainTileData> rawNeighbourLookup = neighbourLookup;
+        if (rawNeighbourLookup != null)
+        {
+            neighbourLookup = coordinate =>
+            {
+                TerrainTileData cachedNeighbour;
+                if (!memoisedNeighbours.TryGetValue(coordinate, out cachedNeighbour))
+                {
+                    cachedNeighbour = rawNeighbourLookup(coordinate);
+                    memoisedNeighbours[coordinate] = cachedNeighbour;
+                }
+                return cachedNeighbour;
+            };
+        }
+
         int paddedCells = CellsPerSide + 2 * marginCells;
         int[] paddedLevels = new int[paddedCells * paddedCells];
         for (int paddedZ = 0; paddedZ < paddedCells; paddedZ++)

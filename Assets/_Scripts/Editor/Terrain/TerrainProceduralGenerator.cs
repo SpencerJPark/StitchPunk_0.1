@@ -9,10 +9,21 @@ public struct TerraceRampPlacement
     public Vector2 centreWorld;
     public float yawDegrees;
     public int lowerLevel;
+    public TerraceRampKind kind;
+    public float runMetres;
+    public float widthMetres;
+    public bool risesToTheRight;
+    public bool isLowStepWornGap;
 }
 
 public static class TerrainProceduralGenerator
 {
+    // Serial on purpose: Parallel.For raced (AnimationCurve.Evaluate in the height remap), giving different masks run to run.
+    private static void ForEachRowInOrder(int firstRow, int rowEndExclusive, System.Action<int> rowBody)
+    {
+        for (int rowIndex = firstRow; rowIndex < rowEndExclusive; rowIndex++) rowBody(rowIndex);
+    }
+
     private const int SamplesPerSide = TerrainTileData.HeightSamplesPerSide;
     private const float TileSizeMetres = TerrainTileData.TileSizeMetres;
     private const int TerraceCellsPerSide = 100;
@@ -158,7 +169,7 @@ public static class TerrainProceduralGenerator
         float minCornerZ = tileCoordinate.y * TileSizeMetres - TileSizeMetres * 0.5f;
         float texelSizeMetres = TileSizeMetres / resolution;
 
-        for (int texelZ = 0; texelZ < resolution; texelZ++)
+        ForEachRowInOrder(0, resolution, (int texelZ) =>
         {
             for (int texelX = 0; texelX < resolution; texelX++)
             {
@@ -167,7 +178,7 @@ public static class TerrainProceduralGenerator
 
                 outMask[texelZ * resolution + texelX] = TerrainSplatCodec.ColourOfLayer(BiomeLayerAt(profile, worldX, worldZ, seedOffset, tileCoordinate, rollIndex));
             }
-        }
+        });
     }
 
     private static TerrainSplatLayer BiomeLayerAt(TerrainGenerationProfile profile, float worldX, float worldZ, float2 seedOffset, Vector2Int tileCoordinate, int rollIndex)
@@ -257,10 +268,38 @@ public static class TerrainProceduralGenerator
         }
         if (minPlateauAreaSquareMetres == float.MaxValue) minPlateauAreaSquareMetres = 0f;
 
-        System.Func<Vector2, bool, int> maxLevelAtWorldPoint = (Vector2 worldPoint, bool useRolledField) =>
+        System.Func<Vector2, bool, int> maxLevelAtWorldPointDirect = (Vector2 worldPoint, bool useRolledField) =>
         {
             int ruleIndex = FirstEnabledRuleIndexAt(profile, worldPoint.x, worldPoint.y, biomeSeedOffset, tileCoordinate, useRolledField ? rollIndex : 0);
             return ruleIndex < 0 ? 0 : Mathf.Min(profile.terraceBiomeRules[ruleIndex].maxLevel, maxLevels);
+        };
+
+        // The raster asks for every window cell centre twice (world and rolled field); precompute both grids once.
+        const int rasterWindowSide = TerraceCellsPerSide + 2 * TerracePlateauRaster.WindowMarginCells;
+        float rasterWindowOriginX = tileCoordinate.x * 100f - 50f - TerracePlateauRaster.WindowMarginCells;
+        float rasterWindowOriginZ = tileCoordinate.y * 100f - 50f - TerracePlateauRaster.WindowMarginCells;
+        int[] worldFieldCapGrid = new int[rasterWindowSide * rasterWindowSide];
+        int[] rolledFieldCapGrid = new int[rasterWindowSide * rasterWindowSide];
+        ForEachRowInOrder(0, rasterWindowSide, (int windowZ) =>
+        {
+            for (int windowX = 0; windowX < rasterWindowSide; windowX++)
+            {
+                Vector2 cellCentreWorld = new Vector2(rasterWindowOriginX + windowX + 0.5f, rasterWindowOriginZ + windowZ + 0.5f);
+                worldFieldCapGrid[windowZ * rasterWindowSide + windowX] = maxLevelAtWorldPointDirect(cellCentreWorld, false);
+                rolledFieldCapGrid[windowZ * rasterWindowSide + windowX] = maxLevelAtWorldPointDirect(cellCentreWorld, true);
+            }
+        });
+
+        System.Func<Vector2, bool, int> maxLevelAtWorldPoint = (Vector2 worldPoint, bool useRolledField) =>
+        {
+            float windowXExact = worldPoint.x - rasterWindowOriginX - 0.5f;
+            float windowZExact = worldPoint.y - rasterWindowOriginZ - 0.5f;
+            int windowX = Mathf.RoundToInt(windowXExact);
+            int windowZ = Mathf.RoundToInt(windowZExact);
+            bool isWindowCellCentre = windowX >= 0 && windowX < rasterWindowSide && windowZ >= 0 && windowZ < rasterWindowSide
+                && Mathf.Abs(windowXExact - windowX) <= 0.01f && Mathf.Abs(windowZExact - windowZ) <= 0.01f;
+            if (!isWindowCellCentre) return maxLevelAtWorldPointDirect(worldPoint, useRolledField);
+            return (useRolledField ? rolledFieldCapGrid : worldFieldCapGrid)[windowZ * rasterWindowSide + windowX];
         };
 
         int[] plateauLevels = new int[TerraceCellsPerSide * TerraceCellsPerSide];
@@ -269,7 +308,8 @@ public static class TerrainProceduralGenerator
             neighbourLookup, maxLevelAtWorldPoint, plateauLevels, plateauKinds);
 
         sbyte[] windowLevels = new sbyte[windowSide * windowSide];
-        for (int cellZ = 0; cellZ < windowSide; cellZ++)
+        // Core cells are pure math and write only their own index, the halo cells call neighbourLookup and are filled below.
+        ForEachRowInOrder(0, windowSide, (int cellZ) =>
         {
             for (int cellX = 0; cellX < windowSide; cellX++)
             {
@@ -304,18 +344,26 @@ public static class TerrainProceduralGenerator
                     }
                     outLevels[coreZ * TerraceCellsPerSide + coreX] = (byte)(level + TerrainTileData.TerraceLevelBias);
                     outStepKinds[coreZ * TerraceCellsPerSide + coreX] = plateauKinds[coreZ * TerraceCellsPerSide + coreX];
+                    windowLevels[cellZ * windowSide + cellX] = (sbyte)level;
                 }
-                else
-                {
-                    level = ResolvedNeighbourLevel(neighbourLookup, tileCoordinate, coreX, coreZ);
-                }
-                windowLevels[cellZ * windowSide + cellX] = (sbyte)level;
+            }
+        });
+
+        for (int cellZ = 0; cellZ < windowSide; cellZ++)
+        {
+            for (int cellX = 0; cellX < windowSide; cellX++)
+            {
+                int coreX = cellX - margin;
+                int coreZ = cellZ - margin;
+                bool insideCore = coreX >= 0 && coreZ >= 0 && coreX < TerraceCellsPerSide && coreZ < TerraceCellsPerSide;
+                if (insideCore) continue;
+                windowLevels[cellZ * windowSide + cellX] = (sbyte)ResolvedNeighbourLevel(neighbourLookup, tileCoordinate, coreX, coreZ);
             }
         }
 
         if (outRamps == null) return;
 
-        PlanRampsAndCullUnreachableRegions(windowLevels, windowSide, maxLevelMagnitude, minCornerX, minCornerZ, tileMinCornerX, tileMinCornerZ, cullProtectionBorderMetres, outRamps);
+        PlanRampsAndCullUnreachableRegions(windowLevels, windowSide, maxLevelMagnitude, minCornerX, minCornerZ, tileMinCornerX, tileMinCornerZ, cullProtectionBorderMetres, profile, tileCoordinate, rollIndex, outStepKinds, outRamps);
         for (int cellZ = 0; cellZ < TerraceCellsPerSide; cellZ++)
         {
             for (int cellX = 0; cellX < TerraceCellsPerSide; cellX++)
@@ -358,10 +406,27 @@ public static class TerrainProceduralGenerator
         GenerateTerraceLevels(profile, tileCoordinate, maxLevels, 0, null, outLevels, scratchStepKinds, outRamps);
     }
 
-    private const float RampWidthMetres = 6f;
-    private const float RampRunMetres = 9f;
+    private const float TallRampWidthMetres = 6f;
+    private const float TallRampRunMetres = 12f;
+    private const float AlongCliffRunMetres = 9f;
+    private const float AlongCliffWidthMetres = 4f;
+    private const float LowGapWidthMetres = 8f;
+    private const float LowGapRunMetres = 2.8f;
+    private const float LowGapSpacingMetres = 40f;
+    private const float TallRampSpacingMetres = 90f;
+    private const float LowGapMinimumSeparationCells = 20f;
+    private const float TallRampMinimumSeparationCells = 12f;
 
-    private static void PlanRampsAndCullUnreachableRegions(sbyte[] windowLevels, int windowSide, int maxLevelMagnitude, float minCornerX, float minCornerZ, float tileMinCornerX, float tileMinCornerZ, float borderProtectionMetres, System.Collections.Generic.List<TerraceRampPlacement> outRamps)
+    private struct RampCandidate
+    {
+        public float edgeCellX;
+        public float edgeCellZ;
+        public float outwardX;
+        public float outwardZ;
+        public float quality;
+    }
+
+    private static void PlanRampsAndCullUnreachableRegions(sbyte[] windowLevels, int windowSide, int maxLevelMagnitude, float minCornerX, float minCornerZ, float tileMinCornerX, float tileMinCornerZ, float borderProtectionMetres, TerrainGenerationProfile profile, Vector2Int tileCoordinate, int rollIndex, byte[] stepKinds, System.Collections.Generic.List<TerraceRampPlacement> outRamps)
     {
         int tileCellMinX = Mathf.RoundToInt(tileMinCornerX - minCornerX);
         int tileCellMinZ = Mathf.RoundToInt(tileMinCornerZ - minCornerZ);
@@ -374,14 +439,20 @@ public static class TerrainProceduralGenerator
         int tileInnerMaxCellX = tileCellMinX + TerraceCellsPerSide - protectionCells;
         int tileInnerMinCellZ = tileCellMinZ + protectionCells;
         int tileInnerMaxCellZ = tileCellMinZ + TerraceCellsPerSide - protectionCells;
-        int blockDepthCells = Mathf.CeilToInt(RampRunMetres * 0.5f + 1f);
-        int minRunCells = Mathf.CeilToInt(RampWidthMetres + 2f);
+        int tallBlockDepthCells = Mathf.CeilToInt(TallRampRunMetres * 0.5f + 1f);
+        int alongCliffBlockDepthCells = Mathf.CeilToInt(AlongCliffWidthMetres + 1f);
+        int lowGapBlockDepthCells = Mathf.CeilToInt(LowGapRunMetres * 0.5f + 1f);
         bool[] visited = new bool[windowLevels.Length];
         bool[] edgeCellIsRampable = new bool[windowLevels.Length];
         int[] stack = new int[windowLevels.Length];
         int[] regionCells = new int[windowLevels.Length];
         int[] directionStepX = { 1, -1, 0, 0 };
         int[] directionStepZ = { 0, 0, 1, -1 };
+        System.Collections.Generic.List<RampCandidate> straightCandidates = new System.Collections.Generic.List<RampCandidate>();
+        System.Collections.Generic.List<RampCandidate> alongCliffCandidates = new System.Collections.Generic.List<RampCandidate>();
+        System.Collections.Generic.List<RampCandidate> lowGapCandidates = new System.Collections.Generic.List<RampCandidate>();
+        System.Collections.Generic.List<Vector2> chosenEdgePoints = new System.Collections.Generic.List<Vector2>();
+        float lockedBandMetres = TerracePlateauField.LockMetres;
 
         for (int magnitude = maxLevelMagnitude; magnitude >= 1; magnitude--)
         {
@@ -423,107 +494,328 @@ public static class TerrainProceduralGenerator
                 if (touchesBorder) continue;
 
                 int targetLevel = regionLevel - (int)Mathf.Sign(regionLevel);
-                int bestDirection = -1;
-                int bestLength = 0;
-                int bestStartX = 0;
-                int bestStartZ = 0;
-                for (int direction = 0; direction < 4; direction++)
+                int outlineCells = 0;
+                int coreCellCount = 0;
+                int lowStepCellCount = 0;
+                int stepKindMask = 1 << (magnitude - 1);
+                for (int regionIndex = 0; regionIndex < regionCount; regionIndex++)
                 {
-                    int stepX = directionStepX[direction];
-                    int stepZ = directionStepZ[direction];
-                    for (int regionIndex = 0; regionIndex < regionCount; regionIndex++)
+                    int cellX = regionCells[regionIndex] % windowSide;
+                    int cellZ = regionCells[regionIndex] / windowSide;
+                    bool isOutlineCell = false;
+                    for (int direction = 0; direction < 4; direction++)
                     {
-                        int cellX = regionCells[regionIndex] % windowSide;
-                        int cellZ = regionCells[regionIndex] / windowSide;
-                        edgeCellIsRampable[regionCells[regionIndex]] = IsRampBlockClear(windowLevels, windowSide, cellX, cellZ, stepX, stepZ, blockDepthCells, regionLevel, targetLevel);
+                        int neighbourX = cellX + directionStepX[direction];
+                        int neighbourZ = cellZ + directionStepZ[direction];
+                        if (neighbourX < 0 || neighbourZ < 0 || neighbourX >= windowSide || neighbourZ >= windowSide || windowLevels[neighbourZ * windowSide + neighbourX] != regionLevel)
+                            isOutlineCell = true;
                     }
-
-                    for (int regionIndex = 0; regionIndex < regionCount; regionIndex++)
-                    {
-                        int cellX = regionCells[regionIndex] % windowSide;
-                        int cellZ = regionCells[regionIndex] / windowSide;
-                        if (!edgeCellIsRampable[regionCells[regionIndex]]) continue;
-
-                        int runStepX = stepX != 0 ? 0 : 1;
-                        int runStepZ = stepX != 0 ? 1 : 0;
-                        int previousX = cellX - runStepX;
-                        int previousZ = cellZ - runStepZ;
-                        bool previousIsRampable = previousX >= 0 && previousZ >= 0 && edgeCellIsRampable[previousZ * windowSide + previousX] && windowLevels[previousZ * windowSide + previousX] == regionLevel;
-                        if (previousIsRampable) continue;
-
-                        int runLength = 0;
-                        int walkX = cellX;
-                        int walkZ = cellZ;
-                        while (walkX < windowSide && walkZ < windowSide && windowLevels[walkZ * windowSide + walkX] == regionLevel && edgeCellIsRampable[walkZ * windowSide + walkX])
-                        {
-                            runLength++;
-                            walkX += runStepX;
-                            walkZ += runStepZ;
-                        }
-
-                        if (runLength < minRunCells) continue;
-                        bool isBetter = runLength > bestLength
-                            || (runLength == bestLength && (cellZ < bestStartZ || (cellZ == bestStartZ && cellX < bestStartX)));
-                        if (!isBetter) continue;
-                        bestLength = runLength;
-                        bestStartX = cellX;
-                        bestStartZ = cellZ;
-                        bestDirection = direction;
-                    }
-
-                    // Stale marks must not leak into the next direction's run detection.
-                    for (int regionIndex = 0; regionIndex < regionCount; regionIndex++)
-                        edgeCellIsRampable[regionCells[regionIndex]] = false;
+                    if (isOutlineCell) outlineCells++;
+                    int coreX = cellX - tileCellMinX;
+                    int coreZ = cellZ - tileCellMinZ;
+                    if (coreX < 0 || coreZ < 0 || coreX >= TerraceCellsPerSide || coreZ >= TerraceCellsPerSide) continue;
+                    coreCellCount++;
+                    if ((stepKinds[coreZ * TerraceCellsPerSide + coreX] & stepKindMask) != 0) lowStepCellCount++;
                 }
 
-                if (bestDirection < 0)
+                // Cells outside the core count as Tall, so a region is Low only when most of its core cells say so.
+                bool isLowRegion = coreCellCount > 0 && lowStepCellCount * 2 > coreCellCount;
+                bool wasDemotedToLow = false;
+                if (!isLowRegion)
                 {
-                    // NC-D8: a region near the tile border may continue in a neighbour tile, so it is kept without a ramp.
-                    if (regionNearTileBorder) continue;
-                    for (int regionIndex = 0; regionIndex < regionCount; regionIndex++)
-                        windowLevels[regionCells[regionIndex]] = (sbyte)targetLevel;
+                    straightCandidates.Clear();
+                    CollectRampCandidates(windowLevels, windowSide, regionCells, regionCount, regionLevel, targetLevel, tallBlockDepthCells, TallRampWidthMetres, TallRampRunMetres, minCornerX, minCornerZ, profile, tileCoordinate, rollIndex, edgeCellIsRampable, directionStepX, directionStepZ, straightCandidates);
+                    RemoveCandidatesTooCloseToTileBorder(straightCandidates, minCornerX, minCornerZ, tileMinCornerX, tileMinCornerZ, lockedBandMetres + TallRampRunMetres);
+                    if (straightCandidates.Count == 0)
+                    {
+                        // NC-D8: a region near the tile border may continue in a neighbour tile, so it is kept without a ramp.
+                        if (regionNearTileBorder) continue;
+                        wasDemotedToLow = true;
+                        isLowRegion = true;
+                    }
+                }
+
+                if (isLowRegion)
+                {
+                    lowGapCandidates.Clear();
+                    CollectRampCandidates(windowLevels, windowSide, regionCells, regionCount, regionLevel, targetLevel, lowGapBlockDepthCells, LowGapWidthMetres, LowGapRunMetres, minCornerX, minCornerZ, profile, tileCoordinate, rollIndex, edgeCellIsRampable, directionStepX, directionStepZ, lowGapCandidates);
+                    RemoveCandidatesTooCloseToTileBorder(lowGapCandidates, minCornerX, minCornerZ, tileMinCornerX, tileMinCornerZ, lockedBandMetres + LowGapRunMetres);
+                    if (wasDemotedToLow)
+                    {
+                        if (lowGapCandidates.Count == 0)
+                        {
+                            for (int regionIndex = 0; regionIndex < regionCount; regionIndex++)
+                                windowLevels[regionCells[regionIndex]] = (sbyte)targetLevel;
+                            continue;
+                        }
+                        for (int regionIndex = 0; regionIndex < regionCount; regionIndex++)
+                        {
+                            int coreX = regionCells[regionIndex] % windowSide - tileCellMinX;
+                            int coreZ = regionCells[regionIndex] / windowSide - tileCellMinZ;
+                            if (coreX < 0 || coreZ < 0 || coreX >= TerraceCellsPerSide || coreZ >= TerraceCellsPerSide) continue;
+                            stepKinds[coreZ * TerraceCellsPerSide + coreX] |= (byte)stepKindMask;
+                        }
+                        Debug.Log("[Terraces] Tall region at world (" + (minCornerX + regionCells[0] % windowSide) + ", " + (minCornerZ + regionCells[0] / windowSide) + ") level " + regionLevel + " fits no caravan-grade Straight ramp; demoted to Low with worn gaps.");
+                    }
+
+                    int gapCount = Mathf.Max(1, Mathf.RoundToInt(outlineCells / LowGapSpacingMetres));
+                    chosenEdgePoints.Clear();
+                    for (int gapIndex = 0; gapIndex < gapCount; gapIndex++)
+                    {
+                        int pickedIndex = PickCandidateIndex(lowGapCandidates, chosenEdgePoints, LowGapMinimumSeparationCells);
+                        if (pickedIndex < 0) break;
+                        RampCandidate picked = lowGapCandidates[pickedIndex];
+                        chosenEdgePoints.Add(new Vector2(picked.edgeCellX, picked.edgeCellZ));
+                        outRamps.Add(CreatePlacement(picked, TerraceRampKind.Straight, LowGapRunMetres, LowGapWidthMetres, false, true, regionLevel, targetLevel, minCornerX, minCornerZ));
+                    }
                     continue;
                 }
 
-                int outwardX = directionStepX[bestDirection];
-                int outwardZ = directionStepZ[bestDirection];
-                float edgeX = bestStartX + (outwardX > 0 ? 1f : 0f) + (outwardX == 0 ? bestLength * 0.5f : 0f);
-                float edgeZ = bestStartZ + (outwardZ > 0 ? 1f : 0f) + (outwardZ == 0 ? bestLength * 0.5f : 0f);
-                Vector2 centreWorld = new Vector2(minCornerX + edgeX, minCornerZ + edgeZ);
-                if (centreWorld.x < tileMinCornerX || centreWorld.x >= tileMinCornerX + TileSizeMetres) continue;
-                if (centreWorld.y < tileMinCornerZ || centreWorld.y >= tileMinCornerZ + TileSizeMetres) continue;
+                int rampCount = Mathf.Clamp(Mathf.RoundToInt(outlineCells / TallRampSpacingMetres), 1, 3);
+                chosenEdgePoints.Clear();
+                alongCliffCandidates.Clear();
+                // AlongCliff parked: its landing notch leaves a hole (Natural Cliffs wave 5)
+                // The AlongCliff collection is skipped so the 2nd and 3rd ramps fall through to Straight.
 
-                float towardHigherSign = regionLevel > 0 ? -1f : 1f;
-                float forwardX = outwardX * towardHigherSign;
-                float forwardZ = outwardZ * towardHigherSign;
-                TerraceRampPlacement placement = new TerraceRampPlacement
+                for (int rampIndex = 0; rampIndex < rampCount; rampIndex++)
                 {
-                    centreWorld = centreWorld,
-                    yawDegrees = Mathf.Atan2(forwardX, forwardZ) * Mathf.Rad2Deg,
-                    lowerLevel = Mathf.Min(regionLevel, targetLevel)
-                };
-                outRamps.Add(placement);
+                    int alongCliffIndex = rampIndex == 0 ? -1 : PickCandidateIndex(alongCliffCandidates, chosenEdgePoints, TallRampMinimumSeparationCells);
+                    if (alongCliffIndex >= 0)
+                    {
+                        RampCandidate picked = alongCliffCandidates[alongCliffIndex];
+                        chosenEdgePoints.Add(new Vector2(picked.edgeCellX, picked.edgeCellZ));
+                        outRamps.Add(CreatePlacement(picked, TerraceRampKind.AlongCliff, AlongCliffRunMetres, AlongCliffWidthMetres, rampIndex % 2 == 1, false, regionLevel, targetLevel, minCornerX, minCornerZ));
+                        continue;
+                    }
+
+                    int straightIndex = PickCandidateIndex(straightCandidates, chosenEdgePoints, TallRampMinimumSeparationCells);
+                    if (straightIndex < 0) break;
+                    RampCandidate straightPicked = straightCandidates[straightIndex];
+                    chosenEdgePoints.Add(new Vector2(straightPicked.edgeCellX, straightPicked.edgeCellZ));
+                    outRamps.Add(CreatePlacement(straightPicked, TerraceRampKind.Straight, TallRampRunMetres, TallRampWidthMetres, false, false, regionLevel, targetLevel, minCornerX, minCornerZ));
+                }
             }
         }
     }
 
-    private static bool IsRampBlockClear(sbyte[] windowLevels, int windowSide, int cellX, int cellZ, int stepX, int stepZ, int blockDepthCells, int regionLevel, int targetLevel)
+    // NC-D13: a candidate is an edge cell whose outline, sampled across spanMetres along the tangent, deviates at most RampChordToleranceMetres, with open lower ground in front.
+    private static void CollectRampCandidates(sbyte[] windowLevels, int windowSide, int[] regionCells, int regionCount, int regionLevel, int targetLevel, int blockDepthCells, float spanMetres, float rampRunMetres, float minCornerX, float minCornerZ, TerrainGenerationProfile profile, Vector2Int tileCoordinate, int rollIndex, bool[] edgeCellIsRampable, int[] directionStepX, int[] directionStepZ, System.Collections.Generic.List<RampCandidate> outCandidates)
     {
-        if (cellX + stepX < 0 || cellZ + stepZ < 0 || cellX + stepX >= windowSide || cellZ + stepZ >= windowSide) return false;
-        if (windowLevels[(cellZ + stepZ) * windowSide + cellX + stepX] != targetLevel) return false;
-
-        for (int depth = 0; depth < blockDepthCells; depth++)
+        float halfSpanMetres = spanMetres * 0.5f;
+        for (int regionIndex = 0; regionIndex < regionCount; regionIndex++)
         {
-            int innerX = cellX - stepX * depth;
-            int innerZ = cellZ - stepZ * depth;
-            int outerX = cellX + stepX * (depth + 1);
-            int outerZ = cellZ + stepZ * (depth + 1);
-            if (innerX < 0 || innerZ < 0 || innerX >= windowSide || innerZ >= windowSide) return false;
-            if (outerX < 0 || outerZ < 0 || outerX >= windowSide || outerZ >= windowSide) return false;
-            if (windowLevels[innerZ * windowSide + innerX] != regionLevel) return false;
-            if (windowLevels[outerZ * windowSide + outerX] != targetLevel) return false;
+            int cellX = regionCells[regionIndex] % windowSide;
+            int cellZ = regionCells[regionIndex] / windowSide;
+            if (!HasLeavingNeighbour(windowLevels, windowSide, cellX, cellZ, regionLevel, directionStepX, directionStepZ)) continue;
+
+            // Outward normal: mean of the leaving 4-neighbour directions over a 5x5 window.
+            float normalSumX = 0f;
+            float normalSumZ = 0f;
+            int leavingCount = 0;
+            for (int windowZ = cellZ - 2; windowZ <= cellZ + 2; windowZ++)
+            {
+                for (int windowX = cellX - 2; windowX <= cellX + 2; windowX++)
+                {
+                    if (SampleLevel(windowLevels, windowSide, windowX + 0.5f, windowZ + 0.5f) != regionLevel) continue;
+                    for (int direction = 0; direction < 4; direction++)
+                    {
+                        if (SampleLevel(windowLevels, windowSide, windowX + 0.5f + directionStepX[direction], windowZ + 0.5f + directionStepZ[direction]) == regionLevel) continue;
+                        normalSumX += directionStepX[direction];
+                        normalSumZ += directionStepZ[direction];
+                        leavingCount++;
+                    }
+                }
+            }
+            if (leavingCount == 0) continue;
+            float normalLength = Mathf.Sqrt(normalSumX * normalSumX + normalSumZ * normalSumZ);
+            if (normalLength < 0.3f * leavingCount) continue;
+            float normalX = normalSumX / normalLength;
+            float normalZ = normalSumZ / normalLength;
+            float tangentX = -normalZ;
+            float tangentZ = normalX;
+
+            float insetCentreX = cellX + 0.5f - normalX * RampMarchInsetMetres;
+            float insetCentreZ = cellZ + 0.5f - normalZ * RampMarchInsetMetres;
+            float minimumDistance = float.MaxValue;
+            float maximumDistance = float.MinValue;
+            float distanceSum = 0f;
+            int sampleCount = 0;
+            bool isRejected = false;
+            for (float offset = -halfSpanMetres; offset <= halfSpanMetres + 0.001f && !isRejected; offset += 1f)
+            {
+                float startX = insetCentreX + tangentX * offset;
+                float startZ = insetCentreZ + tangentZ * offset;
+                if (SampleLevel(windowLevels, windowSide, startX, startZ) != regionLevel) { isRejected = true; break; }
+                float marched = 0f;
+                int levelAhead = regionLevel;
+                while (marched < RampMarchLimitMetres)
+                {
+                    marched += RampMarchStepMetres;
+                    levelAhead = SampleLevel(windowLevels, windowSide, startX + normalX * marched, startZ + normalZ * marched);
+                    if (levelAhead != regionLevel) break;
+                }
+                if (levelAhead != targetLevel) { isRejected = true; break; }
+                minimumDistance = Mathf.Min(minimumDistance, marched);
+                maximumDistance = Mathf.Max(maximumDistance, marched);
+                distanceSum += marched;
+                sampleCount++;
+            }
+            if (isRejected || sampleCount == 0) continue;
+            float deviation = maximumDistance - minimumDistance;
+            if (deviation > RampChordToleranceMetres) continue;
+
+            // Footprint beyond the outline's furthest point must be open lower ground.
+            float meanDistance = distanceSum / sampleCount;
+            float edgeX = insetCentreX + normalX * meanDistance;
+            float edgeZ = insetCentreZ + normalZ * meanDistance;
+            float footprintStart = maximumDistance - meanDistance + 0.25f;
+            for (float offset = -halfSpanMetres; offset <= halfSpanMetres + 0.001f && !isRejected; offset += 1f)
+            {
+                for (float depth = footprintStart; depth <= blockDepthCells; depth += 1f)
+                {
+                    if (SampleLevel(windowLevels, windowSide, edgeX + tangentX * offset + normalX * depth, edgeZ + tangentZ * offset + normalZ * depth) != targetLevel) { isRejected = true; break; }
+                }
+            }
+            if (isRejected) continue;
+
+            float halfRunMetres = rampRunMetres * 0.5f;
+            float highEndX = minCornerX + edgeX - normalX * halfRunMetres;
+            float highEndZ = minCornerZ + edgeZ - normalZ * halfRunMetres;
+            float lowEndX = minCornerX + edgeX + normalX * halfRunMetres;
+            float lowEndZ = minCornerZ + edgeZ + normalZ * halfRunMetres;
+            float highEndHeight = AnalyticHeightAt(profile, highEndX, highEndZ, tileCoordinate, rollIndex);
+            float lowEndHeight = AnalyticHeightAt(profile, lowEndX, lowEndZ, tileCoordinate, rollIndex);
+            if (Mathf.Abs(highEndHeight - lowEndHeight) > MaxBaseRiseAcrossRampMetres) continue;
+            float highCornerHeightA = AnalyticHeightAt(profile, highEndX + tangentX * halfSpanMetres, highEndZ + tangentZ * halfSpanMetres, tileCoordinate, rollIndex);
+            float highCornerHeightB = AnalyticHeightAt(profile, highEndX - tangentX * halfSpanMetres, highEndZ - tangentZ * halfSpanMetres, tileCoordinate, rollIndex);
+            if (Mathf.Abs(highCornerHeightA - highCornerHeightB) > MaxBaseRiseAcrossRampMetres) continue;
+
+            float junctionHalfSpanMetres = halfSpanMetres + RampJunctionClearanceMetres;
+            float junctionHalfRunMetres = halfRunMetres + RampJunctionClearanceMetres;
+            for (float junctionOffset = -junctionHalfSpanMetres; junctionOffset <= junctionHalfSpanMetres + 0.001f && !isRejected; junctionOffset += 1f)
+            {
+                for (float junctionDepth = -junctionHalfRunMetres; junctionDepth <= junctionHalfRunMetres + 0.001f; junctionDepth += 1f)
+                {
+                    int junctionLevel = SampleLevel(windowLevels, windowSide, edgeX + tangentX * junctionOffset + normalX * junctionDepth, edgeZ + tangentZ * junctionOffset + normalZ * junctionDepth);
+                    if (junctionLevel != regionLevel && junctionLevel != targetLevel) { isRejected = true; break; }
+                }
+            }
+            if (isRejected) continue;
+
+            float clearOutwardMetres = 0f;
+            while (clearOutwardMetres < RampClearBonusLimitMetres && SampleLevel(windowLevels, windowSide, edgeX + normalX * (blockDepthCells + clearOutwardMetres), edgeZ + normalZ * (blockDepthCells + clearOutwardMetres)) == targetLevel)
+                clearOutwardMetres += 1f;
+
+            outCandidates.Add(new RampCandidate
+            {
+                edgeCellX = edgeX,
+                edgeCellZ = edgeZ,
+                outwardX = normalX,
+                outwardZ = normalZ,
+                quality = -deviation + 0.05f * clearOutwardMetres
+            });
         }
-        return true;
+    }
+
+    // The ramp climbs the step, not the hill: a base slope steeper than this leaves a notch the ramp cannot fill.
+    private const float MaxBaseRiseAcrossRampMetres = 1f;
+    // A notch that reaches another wall cuts it with nothing to fill, leaving a hole.
+    private const float RampJunctionClearanceMetres = 2f;
+    private const float RampChordToleranceMetres = 1f;
+    private const float RampMarchInsetMetres = 1.5f;
+    private const float RampMarchStepMetres = 0.25f;
+    private const float RampMarchLimitMetres = 12f;
+    private const float RampClearBonusLimitMetres = 6f;
+    private const int OutsideWindowLevel = int.MinValue;
+
+    private static int SampleLevel(sbyte[] windowLevels, int windowSide, float cellX, float cellZ)
+    {
+        int indexX = Mathf.FloorToInt(cellX);
+        int indexZ = Mathf.FloorToInt(cellZ);
+        if (indexX < 0 || indexZ < 0 || indexX >= windowSide || indexZ >= windowSide) return OutsideWindowLevel;
+        return windowLevels[indexZ * windowSide + indexX];
+    }
+
+    private static bool HasLeavingNeighbour(sbyte[] windowLevels, int windowSide, int cellX, int cellZ, int regionLevel, int[] directionStepX, int[] directionStepZ)
+    {
+        for (int direction = 0; direction < 4; direction++)
+        {
+            if (SampleLevel(windowLevels, windowSide, cellX + 0.5f + directionStepX[direction], cellZ + 0.5f + directionStepZ[direction]) != regionLevel) return true;
+        }
+        return false;
+    }
+
+    private static void RemoveCandidatesTooCloseToTileBorder(System.Collections.Generic.List<RampCandidate> candidates, float minCornerX, float minCornerZ, float tileMinCornerX, float tileMinCornerZ, float minimumDistanceMetres)
+    {
+        candidates.RemoveAll(candidate =>
+        {
+            float worldX = minCornerX + candidate.edgeCellX;
+            float worldZ = minCornerZ + candidate.edgeCellZ;
+            float distanceToBorder = Mathf.Min(Mathf.Min(worldX - tileMinCornerX, tileMinCornerX + TileSizeMetres - worldX), Mathf.Min(worldZ - tileMinCornerZ, tileMinCornerZ + TileSizeMetres - worldZ));
+            return distanceToBorder < minimumDistanceMetres;
+        });
+    }
+
+    // First pick is the best-scoring chord; later picks are the candidate farthest from everything already chosen.
+    private static int PickCandidateIndex(System.Collections.Generic.List<RampCandidate> candidates, System.Collections.Generic.List<Vector2> chosenEdgePoints, float minimumSeparationCells)
+    {
+        int bestIndex = -1;
+        float bestScore = float.MinValue;
+        for (int candidateIndex = 0; candidateIndex < candidates.Count; candidateIndex++)
+        {
+            RampCandidate candidate = candidates[candidateIndex];
+            float score;
+            if (chosenEdgePoints.Count == 0)
+            {
+                score = candidate.quality;
+            }
+            else
+            {
+                score = float.MaxValue;
+                for (int chosenIndex = 0; chosenIndex < chosenEdgePoints.Count; chosenIndex++)
+                    score = Mathf.Min(score, (new Vector2(candidate.edgeCellX, candidate.edgeCellZ) - chosenEdgePoints[chosenIndex]).sqrMagnitude);
+                if (score < minimumSeparationCells * minimumSeparationCells) continue;
+            }
+            if (score <= bestScore) continue;
+            bestScore = score;
+            bestIndex = candidateIndex;
+        }
+        return bestIndex;
+    }
+
+    // Straight yaw points up the slope. AlongCliff yaw runs parallel to the face, centred on the lower ground half its width off the face.
+    private static TerraceRampPlacement CreatePlacement(RampCandidate candidate, TerraceRampKind kind, float runMetres, float widthMetres, bool risesToTheRight, bool isLowStepWornGap, int regionLevel, int targetLevel, float minCornerX, float minCornerZ)
+    {
+        float towardHigherSign = regionLevel > 0 ? -1f : 1f;
+        float forwardX = candidate.outwardX * towardHigherSign;
+        float forwardZ = candidate.outwardZ * towardHigherSign;
+        Vector2 centreWorld = new Vector2(minCornerX + candidate.edgeCellX, minCornerZ + candidate.edgeCellZ);
+        if (kind == TerraceRampKind.AlongCliff)
+        {
+            // forward currently points toward the higher ground (the cliff); the ramp runs parallel to the face instead.
+            centreWorld -= new Vector2(forwardX, forwardZ) * (widthMetres * 0.5f);
+            Vector2 alongFaceForward = ForwardAlongFaceKeepingCliffOnSide(new Vector2(forwardX, forwardZ), risesToTheRight);
+            forwardX = alongFaceForward.x;
+            forwardZ = alongFaceForward.y;
+        }
+        return new TerraceRampPlacement
+        {
+            centreWorld = centreWorld,
+            yawDegrees = Mathf.Atan2(forwardX, forwardZ) * Mathf.Rad2Deg,
+            lowerLevel = Mathf.Min(regionLevel, targetLevel),
+            kind = kind,
+            runMetres = runMetres,
+            widthMetres = widthMetres,
+            risesToTheRight = risesToTheRight,
+            isLowStepWornGap = isLowStepWornGap
+        };
+    }
+
+    // Left of forward f is (-f.z, f.x); f = (c.z, -c.x) puts the cliff direction c on the left, and the negation puts it on the right.
+    private static Vector2 ForwardAlongFaceKeepingCliffOnSide(Vector2 towardCliff, bool cliffIsOnTheLeft)
+    {
+        Vector2 forwardWithCliffOnLeft = new Vector2(towardCliff.y, -towardCliff.x);
+        return cliffIsOnTheLeft ? forwardWithCliffOnLeft : -forwardWithCliffOnLeft;
     }
 
     private static float2 CreateSeedOffset(int seed)

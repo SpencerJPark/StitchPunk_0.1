@@ -70,7 +70,7 @@ public static class TerraceTileMeshBuilder
             return TerrainMeshBuilder.BuildTileMesh(data, 1, neighbourLookup, verticalOffsetMetres);
         }
 
-        TileBuild build = new TileBuild(data, world.terraceLevelHeightMetres, verticalOffsetMetres, signedDistance, firstThreshold, ramps,
+        TileBuild build = new TileBuild(data, world.terraceLevelHeightMetres, world.hillStepHeightMetres, verticalOffsetMetres, signedDistance, firstThreshold, ramps,
             world.terraceTopRoundMetres, world.terraceFootRoundMetres, world.terraceUseTileCliffEdges);
         return build.BuildMesh();
     }
@@ -140,6 +140,8 @@ public static class TerraceTileMeshBuilder
         private readonly float footRoundMetres;
         private readonly bool useTileCliffEdges;
         private readonly float levelHeight;
+        private readonly float hillStepMetres;
+        private readonly bool tileHasStepKinds;
         private readonly float verticalOffset;
         private readonly float[][] signedDistance;
         private readonly int firstThreshold;
@@ -160,6 +162,7 @@ public static class TerraceTileMeshBuilder
         public TileBuild(
             TerrainTileData data,
             float levelHeight,
+            float hillStepMetres,
             float verticalOffset,
             float[][] signedDistance,
             int firstThreshold,
@@ -174,6 +177,8 @@ public static class TerraceTileMeshBuilder
             this.firstThreshold = firstThreshold;
             this.data = data;
             this.levelHeight = levelHeight;
+            this.hillStepMetres = hillStepMetres;
+            tileHasStepKinds = data.baseTerraceStepKinds != null || data.handTerraceStepKinds != null;
             this.verticalOffset = verticalOffset;
             this.signedDistance = signedDistance;
             tileWorldCentre = new Vector2(data.coordinate.x, data.coordinate.y) * TerrainTileData.TileSizeMetres;
@@ -691,6 +696,50 @@ public static class TerraceTileMeshBuilder
             return !(sawPositive && sawNegative);
         }
 
+        // Step kinds come from the nearest cell (within 2 m) already at or above `level`; with no kinds data every step is Tall, as before.
+        private float LevelOffsetMetresAt(Vector2 tileMetres, int level)
+        {
+            if (!tileHasStepKinds)
+            {
+                return level * levelHeight;
+            }
+            int centreSampleX = Mathf.Clamp(Mathf.RoundToInt(tileMetres.x * SamplesPerMetre), 0, SamplesPerSide - 1);
+            int centreSampleZ = Mathf.Clamp(Mathf.RoundToInt(tileMetres.y * SamplesPerMetre), 0, SamplesPerSide - 1);
+            int foundSampleX = -1;
+            int foundSampleZ = -1;
+            if (levels[centreSampleZ * SamplesPerSide + centreSampleX] >= level)
+            {
+                foundSampleX = centreSampleX;
+                foundSampleZ = centreSampleZ;
+            }
+            else
+            {
+                int searchRadiusSamples = 2 * SamplesPerMetre;
+                int bestDistanceSquared = int.MaxValue;
+                for (int sampleZ = Mathf.Max(0, centreSampleZ - searchRadiusSamples); sampleZ <= Mathf.Min(SamplesPerSide - 1, centreSampleZ + searchRadiusSamples); sampleZ++)
+                {
+                    for (int sampleX = Mathf.Max(0, centreSampleX - searchRadiusSamples); sampleX <= Mathf.Min(SamplesPerSide - 1, centreSampleX + searchRadiusSamples); sampleX++)
+                    {
+                        int distanceSquared = (sampleX - centreSampleX) * (sampleX - centreSampleX) + (sampleZ - centreSampleZ) * (sampleZ - centreSampleZ);
+                        if (distanceSquared < bestDistanceSquared && levels[sampleZ * SamplesPerSide + sampleX] >= level)
+                        {
+                            bestDistanceSquared = distanceSquared;
+                            foundSampleX = sampleX;
+                            foundSampleZ = sampleZ;
+                        }
+                    }
+                }
+            }
+            byte stepKinds = 0;
+            if (foundSampleX >= 0)
+            {
+                int cellX = Mathf.Clamp(foundSampleX / SamplesPerMetre, 0, CellsPerSide - 1);
+                int cellZ = Mathf.Clamp(foundSampleZ / SamplesPerMetre, 0, CellsPerSide - 1);
+                stepKinds = data.EffectiveTerraceStepKinds(cellZ * CellsPerSide + cellX);
+            }
+            return TerrainTileData.TerraceLevelOffsetMetres(stepKinds, level, levelHeight, hillStepMetres);
+        }
+
         private float LayerHeight(Vector2 tileMetres)
         {
             return data.SampleBilinear(tileWorldCentre.x + tileMetres.x - HalfTile, tileWorldCentre.y + tileMetres.y - HalfTile) + verticalOffset;
@@ -716,7 +765,7 @@ public static class TerraceTileMeshBuilder
                 return existingIndex;
             }
             groundVertexLookup.Add(weldKey, positions.Count);
-            positions.Add(new Vector3(tileMetres.x - HalfTile, LayerHeight(tileMetres) + level * levelHeight, tileMetres.y - HalfTile));
+            positions.Add(new Vector3(tileMetres.x - HalfTile, LayerHeight(tileMetres) + LevelOffsetMetresAt(tileMetres, level), tileMetres.y - HalfTile));
             normals.Add(GroundNormal(tileMetres));
             // z carries the terrace level so PaintedGround can pick the edge-tile case per corner.
             uvs.Add(new Vector4(
@@ -818,8 +867,9 @@ public static class TerraceTileMeshBuilder
             for (int index = 0; index < pointCount; index++)
             {
                 float groundHeight = LayerHeight(chainPoints[index]);
-                tops[index] = groundHeight + (pointLowerLevels[index] + 1) * levelHeight;
-                bottoms[index] = groundHeight + pointLowerLevels[index] * levelHeight;
+                Vector2 upperSidePoint = chainPoints[index] - wallSegments[chainSegments[Mathf.Min(index, segmentCount - 1)]].normal;
+                tops[index] = groundHeight + LevelOffsetMetresAt(upperSidePoint, pointLowerLevels[index] + 1);
+                bottoms[index] = groundHeight + LevelOffsetMetresAt(upperSidePoint, pointLowerLevels[index]);
                 points.Add(new Vector3(chainPoints[index].x - HalfTile, tops[index], chainPoints[index].y - HalfTile));
                 bottomHeights.Add(bottoms[index]);
             }
@@ -914,7 +964,7 @@ public static class TerraceTileMeshBuilder
                     footOffsets[index] *= scale;
                 }
                 footHeights[index] = footOffsets[index] > 0f
-                    ? LayerHeight(chainPoints[index] + outward[index] * footOffsets[index]) + pointLowerLevels[index] * levelHeight + FootLiftMetres
+                    ? LayerHeight(chainPoints[index] + outward[index] * footOffsets[index]) + LevelOffsetMetresAt(chainPoints[index] - outward[index], pointLowerLevels[index]) + FootLiftMetres
                     : bottoms[index];
             }
 
